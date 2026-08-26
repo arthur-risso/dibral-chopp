@@ -24,6 +24,8 @@ export type Cliente = {
   codigo_principal: string;
   codigo_secundario: string | null;
   whatsapp: string | null;
+  setor: string | null;
+  cidade: string | null;
   ativo: boolean;
   criado_em: string;
 };
@@ -44,6 +46,12 @@ export type ReservaComRelacoes = Reserva & {
   cliente_nome: string;
   produto_nome: string;
   produto_marca: string;
+};
+
+export type CelulaReserva = {
+  id: string;
+  quantidade: number;
+  status: StatusReserva;
 };
 
 export type SugestaoProduto = {

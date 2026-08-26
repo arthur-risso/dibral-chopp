@@ -20,6 +20,8 @@ export async function PUT(
   }
   if (body.codigo_secundario !== undefined) update.codigo_secundario = body.codigo_secundario?.trim() || null;
   if (body.whatsapp !== undefined) update.whatsapp = body.whatsapp?.trim() || null;
+  if (body.setor !== undefined) update.setor = body.setor?.trim() || null;
+  if (body.cidade !== undefined) update.cidade = body.cidade?.trim() || null;
   if (body.ativo !== undefined) update.ativo = !!body.ativo;
 
   const { data, error } = await db

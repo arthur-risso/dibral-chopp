@@ -4,34 +4,35 @@ import { useEffect, useMemo, useState } from "react";
 import { getMondayISO, addWeeksISO, formatWeekLabel, isCurrentWeek } from "@/lib/week";
 import { brandColor } from "@/lib/brandColors";
 import { nomeExibicao } from "@/lib/clientes";
-import type { Cliente, Produto, ReservaComRelacoes, StatusReserva } from "@/lib/types";
+import type { Cliente, Produto, ReservaComRelacoes, StatusReserva, CelulaReserva } from "@/lib/types";
 
-type ReservaLinha = ReservaComRelacoes & { produto_ordem?: number };
-
-const STATUS_LABEL: Record<StatusReserva, string> = {
-  reservado: "Reservado",
-  entregue: "Entregue",
-  cancelado: "Cancelado",
+const PROXIMO_STATUS: Record<StatusReserva, StatusReserva> = {
+  reservado: "entregue",
+  entregue: "cancelado",
+  cancelado: "reservado",
 };
+
+const STATUS_CLASSE: Record<StatusReserva, string> = {
+  reservado: "bg-[var(--warn-bg)] text-warn",
+  entregue: "bg-[var(--ok-bg)] text-ok",
+  cancelado: "bg-surface text-text-faint line-through",
+};
+
+function cellKey(clienteId: string, produtoId: string) {
+  return `${clienteId}__${produtoId}`;
+}
 
 export default function ReservasPage() {
   const [semana, setSemana] = useState(getMondayISO());
-  const [reservas, setReservas] = useState<ReservaLinha[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [produtos, setProdutos] = useState<Produto[]>([]);
+  const [celulas, setCelulas] = useState<Map<string, CelulaReserva>>(new Map());
+  const [valores, setValores] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
-
-  const [clienteId, setClienteId] = useState("");
-  const [produtoId, setProdutoId] = useState("");
-  const [quantidade, setQuantidade] = useState("");
-  const [salvando, setSalvando] = useState(false);
-  const [erro, setErro] = useState<string | null>(null);
+  const [busca, setBusca] = useState("");
 
   async function carregarBase() {
-    const [rc, rp] = await Promise.all([
-      fetch("/api/clientes?ativos=1"),
-      fetch("/api/produtos"),
-    ]);
+    const [rc, rp] = await Promise.all([fetch("/api/clientes?ativos=1"), fetch("/api/produtos")]);
     const [bc, bp] = await Promise.all([rc.json(), rp.json()]);
     setClientes(bc.clientes || []);
     setProdutos(bp.produtos || []);
@@ -41,7 +42,17 @@ export default function ReservasPage() {
     setLoading(true);
     const res = await fetch(`/api/reservas?semana=${semana}`);
     const body = await res.json();
-    setReservas(body.reservas || []);
+    const lista: ReservaComRelacoes[] = body.reservas || [];
+
+    const novasCelulas = new Map<string, CelulaReserva>();
+    const novosValores: Record<string, string> = {};
+    for (const r of lista) {
+      const key = cellKey(r.cliente_id, r.produto_id);
+      novasCelulas.set(key, { id: r.id, quantidade: r.quantidade, status: r.status as StatusReserva });
+      novosValores[key] = String(r.quantidade);
+    }
+    setCelulas(novasCelulas);
+    setValores(novosValores);
     setLoading(false);
   }
 
@@ -51,64 +62,98 @@ export default function ReservasPage() {
 
   useEffect(() => {
     carregarReservas();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [semana]);
 
+  const clientesFiltrados = useMemo(() => {
+    const termo = busca.toLowerCase();
+    if (!termo) return clientes;
+    return clientes.filter(
+      (c) =>
+        nomeExibicao(c).toLowerCase().includes(termo) ||
+        (c.setor || "").toLowerCase().includes(termo) ||
+        (c.cidade || "").toLowerCase().includes(termo)
+    );
+  }, [clientes, busca]);
+
   const totalPorProduto = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const r of reservas) {
-      if (r.status === "cancelado") continue;
-      map.set(r.produto_nome, (map.get(r.produto_nome) || 0) + r.quantidade);
-    }
-    return Array.from(map.entries());
-  }, [reservas]);
+    return produtos.map((p) => {
+      let total = 0;
+      for (const c of clientes) {
+        const cel = celulas.get(cellKey(c.id, p.id));
+        if (cel && cel.status !== "cancelado") total += cel.quantidade;
+      }
+      return total;
+    });
+  }, [produtos, clientes, celulas]);
 
-  const reservasOrdenadas = useMemo(() => {
-    return [...reservas].sort((a, b) => a.cliente_nome.localeCompare(b.cliente_nome));
-  }, [reservas]);
+  function onChangeValor(clienteId: string, produtoId: string, texto: string) {
+    const key = cellKey(clienteId, produtoId);
+    setValores((prev) => ({ ...prev, [key]: texto }));
+  }
 
-  async function adicionar() {
-    if (!clienteId || !produtoId || !quantidade) {
-      setErro("Selecione cliente, produto e quantidade.");
+  async function commitCelula(clienteId: string, produtoId: string) {
+    const key = cellKey(clienteId, produtoId);
+    const atual = celulas.get(key);
+    const texto = (valores[key] ?? "").trim();
+
+    if (texto === "") {
+      if (atual) {
+        await fetch(`/api/reservas/${atual.id}`, { method: "DELETE" });
+        setCelulas((prev) => {
+          const next = new Map(prev);
+          next.delete(key);
+          return next;
+        });
+      }
       return;
     }
-    setSalvando(true);
-    setErro(null);
-    try {
-      const res = await fetch("/api/reservas", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          cliente_id: clienteId,
-          produto_id: produtoId,
-          quantidade: Number(quantidade),
-          semana_referencia: semana,
-        }),
+
+    const valor = Number(texto);
+    if (Number.isNaN(valor) || valor <= 0) {
+      setValores((prev) => ({ ...prev, [key]: atual ? String(atual.quantidade) : "" }));
+      return;
+    }
+    if (atual && atual.quantidade === valor) return;
+
+    const res = await fetch("/api/reservas", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        cliente_id: clienteId,
+        produto_id: produtoId,
+        quantidade: valor,
+        semana_referencia: semana,
+      }),
+    });
+    const body = await res.json();
+    if (res.ok) {
+      setCelulas((prev) => {
+        const next = new Map(prev);
+        next.set(key, { id: body.reserva.id, quantidade: body.reserva.quantidade, status: body.reserva.status });
+        return next;
       });
-      const body = await res.json();
-      if (!res.ok) {
-        setErro(body.error || "Não foi possível reservar.");
-        return;
-      }
-      setQuantidade("");
-      carregarReservas();
-    } finally {
-      setSalvando(false);
+      setValores((prev) => ({ ...prev, [key]: String(body.reserva.quantidade) }));
+    } else {
+      setValores((prev) => ({ ...prev, [key]: atual ? String(atual.quantidade) : "" }));
     }
   }
 
-  async function mudarStatus(r: ReservaLinha, status: StatusReserva) {
-    await fetch(`/api/reservas/${r.id}`, {
+  async function alternarStatus(clienteId: string, produtoId: string) {
+    const key = cellKey(clienteId, produtoId);
+    const atual = celulas.get(key);
+    if (!atual) return;
+    const novoStatus = PROXIMO_STATUS[atual.status];
+    await fetch(`/api/reservas/${atual.id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status }),
+      body: JSON.stringify({ status: novoStatus }),
     });
-    carregarReservas();
-  }
-
-  async function excluir(r: ReservaLinha) {
-    if (!confirm(`Excluir a reserva de ${r.produto_nome} de ${r.cliente_nome}?`)) return;
-    await fetch(`/api/reservas/${r.id}`, { method: "DELETE" });
-    carregarReservas();
+    setCelulas((prev) => {
+      const next = new Map(prev);
+      next.set(key, { ...atual, status: novoStatus });
+      return next;
+    });
   }
 
   return (
@@ -117,7 +162,7 @@ export default function ReservasPage() {
         <div>
           <h1 className="font-[family-name:var(--font-display)] text-2xl text-text">Reservas</h1>
           <p className="text-sm text-text-muted mt-0.5">
-            Lançamentos feitos a partir das respostas do WhatsApp de segunda-feira
+            Uma linha por cliente — preencha a quantidade de cada chopp direto na célula
           </p>
         </div>
         <div className="flex items-center gap-1 rounded-lg border border-border bg-surface px-1.5 py-1.5">
@@ -130,9 +175,7 @@ export default function ReservasPage() {
           </button>
           <span className="px-2 text-sm font-[family-name:var(--font-mono)] text-text min-w-[132px] text-center">
             {formatWeekLabel(semana)}
-            {isCurrentWeek(semana) && (
-              <span className="ml-1.5 text-amber text-xs">· atual</span>
-            )}
+            {isCurrentWeek(semana) && <span className="ml-1.5 text-amber text-xs">· atual</span>}
           </span>
           <button
             onClick={() => setSemana(addWeeksISO(semana, 1))}
@@ -144,167 +187,114 @@ export default function ReservasPage() {
         </div>
       </header>
 
-      {/* Lançamento rápido */}
-      <div className="rounded-xl border border-border bg-surface p-4 mb-6">
-        <p className="text-xs text-text-muted mb-3">Nova reserva para esta semana</p>
-        <div className="flex flex-wrap gap-2.5">
-          <select
-            value={clienteId}
-            onChange={(e) => setClienteId(e.target.value)}
-            className="input flex-1 min-w-[160px]"
-          >
-            <option value="">Cliente…</option>
-            {clientes.map((c) => (
-              <option key={c.id} value={c.id}>
-                {nomeExibicao(c)}
-              </option>
-            ))}
-          </select>
-          <select
-            value={produtoId}
-            onChange={(e) => setProdutoId(e.target.value)}
-            className="input flex-1 min-w-[160px]"
-          >
-            <option value="">Chopp…</option>
-            {produtos.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.nome}
-              </option>
-            ))}
-          </select>
-          <input
-            type="number"
-            min={1}
-            value={quantidade}
-            onChange={(e) => setQuantidade(e.target.value)}
-            placeholder="Qtd."
-            className="input w-24"
-          />
-          <button
-            onClick={adicionar}
-            disabled={salvando}
-            className="rounded-lg bg-amber text-[#1a1408] font-medium px-4 py-2 text-sm hover:bg-amber-strong disabled:opacity-50"
-          >
-            Adicionar
-          </button>
-        </div>
-        {erro && <p className="text-sm text-danger mt-2">{erro}</p>}
-      </div>
-
-      {/* Resumo por produto */}
-      {totalPorProduto.length > 0 && (
-        <div className="flex flex-wrap gap-2 mb-6">
-          {totalPorProduto.map(([nome, total]) => (
-            <span
-              key={nome}
-              className="inline-flex items-center gap-1.5 rounded-full border border-border bg-bg-elevated px-3 py-1 text-xs text-text-muted"
-            >
-              {nome}
-              <span className="font-[family-name:var(--font-mono)] text-text">{total}</span>
-            </span>
-          ))}
-        </div>
-      )}
+      <input
+        value={busca}
+        onChange={(e) => setBusca(e.target.value)}
+        placeholder="Buscar por nome, setor ou cidade…"
+        className="w-full max-w-sm mb-4 rounded-lg bg-surface border border-border px-3 py-2 text-sm text-text placeholder:text-text-faint focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber"
+      />
 
       {loading ? (
         <p className="text-sm text-text-faint">Carregando…</p>
-      ) : reservasOrdenadas.length === 0 ? (
+      ) : clientes.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border py-12 text-center">
-          <p className="text-text-muted text-sm">Nenhuma reserva lançada para esta semana ainda.</p>
+          <p className="text-text-muted text-sm">
+            Nenhum cliente ativo cadastrado ainda — cadastre clientes para lançar reservas.
+          </p>
         </div>
       ) : (
-        <div className="rounded-xl border border-border overflow-hidden">
-          <table className="w-full text-sm">
+        <div className="rounded-xl border border-border overflow-auto max-h-[70vh]">
+          <table className="text-sm border-collapse">
             <thead>
-              <tr className="bg-bg-elevated text-text-faint text-left">
-                <th className="px-4 py-2.5 font-medium">Cliente</th>
-                <th className="px-4 py-2.5 font-medium">Chopp</th>
-                <th className="px-4 py-2.5 font-medium text-right">Qtd.</th>
-                <th className="px-4 py-2.5 font-medium">Status</th>
-                <th className="px-4 py-2.5 font-medium text-right">Ações</th>
+              <tr>
+                <th className="sticky left-0 top-0 z-20 bg-bg-elevated text-text-faint text-left font-medium px-4 py-2.5 border-b border-r border-border-subtle w-56 min-w-[14rem]">
+                  Cliente
+                </th>
+                {produtos.map((p) => (
+                  <th
+                    key={p.id}
+                    className="sticky top-0 z-10 bg-bg-elevated text-text-faint font-medium px-2 py-2.5 border-b border-border-subtle w-28 min-w-[7rem] text-center"
+                  >
+                    <span className="inline-flex items-center gap-1.5 justify-center">
+                      <span
+                        className="h-2 w-2 rounded-full shrink-0"
+                        style={{ background: brandColor(p.nome, p.marca) }}
+                      />
+                      <span className="leading-tight">{p.nome}</span>
+                    </span>
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
-              {reservasOrdenadas.map((r) => (
-                <tr key={r.id} className="border-t border-border-subtle hover:bg-surface/40">
-                  <td className="px-4 py-2.5 text-text">{r.cliente_nome}</td>
-                  <td className="px-4 py-2.5 text-text-muted">
-                    <span className="inline-flex items-center gap-1.5">
-                      <span
-                        className="h-2 w-2 rounded-full shrink-0"
-                        style={{ background: brandColor(r.produto_nome, r.produto_marca) }}
-                      />
-                      {r.produto_nome}
-                    </span>
+              {clientesFiltrados.map((c) => (
+                <tr key={c.id} className="hover:bg-surface/40">
+                  <td className="sticky left-0 z-10 bg-bg border-r border-b border-border-subtle px-4 py-2 w-56 min-w-[14rem]">
+                    <div className="text-text text-sm">{nomeExibicao(c)}</div>
+                    {(c.setor || c.cidade) && (
+                      <div className="text-[11px] text-text-faint">
+                        {[c.setor, c.cidade].filter(Boolean).join(" · ")}
+                      </div>
+                    )}
                   </td>
-                  <td className="px-4 py-2.5 text-right font-[family-name:var(--font-mono)] text-text">
-                    {r.quantidade}
-                  </td>
-                  <td className="px-4 py-2.5">
-                    <StatusBadge status={r.status as StatusReserva} />
-                  </td>
-                  <td className="px-4 py-2.5">
-                    <div className="flex items-center justify-end gap-1.5">
-                      {r.status !== "entregue" && (
-                        <button
-                          onClick={() => mudarStatus(r, "entregue")}
-                          className="text-xs text-ok hover:underline"
-                        >
-                          Entregue
-                        </button>
-                      )}
-                      {r.status !== "cancelado" && (
-                        <button
-                          onClick={() => mudarStatus(r, "cancelado")}
-                          className="text-xs text-text-faint hover:text-danger hover:underline"
-                        >
-                          Cancelar
-                        </button>
-                      )}
-                      <button
-                        onClick={() => excluir(r)}
-                        className="text-text-faint hover:text-danger p-1 rounded-md"
-                        title="Excluir"
+                  {produtos.map((p) => {
+                    const key = cellKey(c.id, p.id);
+                    const celula = celulas.get(key);
+                    return (
+                      <td
+                        key={p.id}
+                        className="border-b border-border-subtle px-1.5 py-1.5 text-center align-middle"
                       >
-                        <TrashIcon />
-                      </button>
-                    </div>
-                  </td>
+                        <div className="flex flex-col items-center gap-1">
+                          <input
+                            type="number"
+                            min={0}
+                            value={valores[key] ?? ""}
+                            onChange={(e) => onChangeValor(c.id, p.id, e.target.value)}
+                            onBlur={() => commitCelula(c.id, p.id)}
+                            onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
+                            className="w-16 rounded-md bg-bg-elevated border border-border px-1.5 py-1 text-center text-sm font-[family-name:var(--font-mono)] text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber"
+                          />
+                          {celula && (
+                            <button
+                              onClick={() => alternarStatus(c.id, p.id)}
+                              className={`rounded-full px-1.5 py-0.5 text-[9px] leading-tight ${STATUS_CLASSE[celula.status]}`}
+                              title="Clique para mudar o status"
+                            >
+                              {celula.status}
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    );
+                  })}
                 </tr>
               ))}
             </tbody>
+            <tfoot>
+              <tr>
+                <td className="sticky left-0 bottom-0 z-10 bg-bg-elevated border-r border-t border-border-subtle px-4 py-2.5 text-xs text-text-muted font-medium">
+                  Total na semana
+                </td>
+                {produtos.map((p, i) => (
+                  <td
+                    key={p.id}
+                    className="bg-bg-elevated border-t border-border-subtle px-2 py-2.5 text-center text-sm font-[family-name:var(--font-mono)] text-amber-strong"
+                  >
+                    {totalPorProduto[i]}
+                  </td>
+                ))}
+              </tr>
+            </tfoot>
           </table>
         </div>
       )}
 
-      <style jsx global>{`
-        .input {
-          border-radius: 0.5rem;
-          background: var(--bg);
-          border: 1px solid var(--border);
-          padding: 0.55rem 0.75rem;
-          font-size: 0.875rem;
-          color: var(--text);
-        }
-        .input:focus-visible {
-          outline: 2px solid var(--amber);
-          outline-offset: 1px;
-        }
-      `}</style>
+      <p className="text-xs text-text-faint mt-3">
+        Deixe a célula vazia para remover a reserva. Clique na etiqueta abaixo do número para
+        alternar entre reservado → entregue → cancelado.
+      </p>
     </div>
-  );
-}
-
-function StatusBadge({ status }: { status: StatusReserva }) {
-  const styles: Record<StatusReserva, string> = {
-    reservado: "bg-[var(--warn-bg)] text-warn",
-    entregue: "bg-[var(--ok-bg)] text-ok",
-    cancelado: "bg-surface text-text-faint",
-  };
-  return (
-    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs ${styles[status]}`}>
-      {STATUS_LABEL[status]}
-    </span>
   );
 }
 
@@ -319,18 +309,6 @@ function ChevronRight() {
   return (
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
       <path d="M9 6l6 6-6 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-function TrashIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-      <path
-        d="M4 7h16M9 7V4.5A1.5 1.5 0 0 1 10.5 3h3A1.5 1.5 0 0 1 15 4.5V7m2 0v13a1.5 1.5 0 0 1-1.5 1.5h-7A1.5 1.5 0 0 1 7 20V7h10Z"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinejoin="round"
-      />
     </svg>
   );
 }

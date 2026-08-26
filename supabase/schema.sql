@@ -25,6 +25,8 @@ create table if not exists clientes (
   codigo_principal text not null,
   codigo_secundario text,
   whatsapp text,
+  setor text,
+  cidade text,
   ativo boolean not null default true,
   criado_em timestamptz not null default now(),
   constraint clientes_codigo_principal_key unique (codigo_principal)
@@ -39,7 +41,9 @@ create table if not exists reservas (
   semana_referencia date not null,
   status text not null default 'reservado'
     check (status in ('reservado', 'entregue', 'cancelado')),
-  criado_em timestamptz not null default now()
+  criado_em timestamptz not null default now(),
+  -- Uma "célula" só existe uma vez por cliente/produto/semana (grade estilo planilha)
+  constraint reservas_cliente_produto_semana_key unique (cliente_id, produto_id, semana_referencia)
 );
 
 create index if not exists idx_reservas_semana on reservas (semana_referencia);

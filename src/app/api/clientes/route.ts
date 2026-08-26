@@ -34,6 +34,8 @@ export async function POST(req: Request) {
       codigo_principal: codigoPrincipal,
       codigo_secundario: body.codigo_secundario?.trim() || null,
       whatsapp: body.whatsapp?.trim() || null,
+      setor: body.setor?.trim() || null,
+      cidade: body.cidade?.trim() || null,
       ativo: body.ativo ?? true,
     })
     .select()

@@ -83,3 +83,41 @@ export async function POST(req: Request) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ reserva: data }, { status: 201 });
 }
+
+/**
+ * Usado pela grade de reservas: uma célula (cliente + produto + semana)
+ * é uma reserva só. Se já existir, atualiza a quantidade sem mexer no
+ * status; se não existir, cria com status "reservado".
+ */
+export async function PUT(req: Request) {
+  const db = supabaseAdmin();
+  const body = await req.json();
+
+  const { cliente_id, produto_id, quantidade, semana_referencia } = body;
+  if (!cliente_id || !produto_id || !semana_referencia || quantidade === undefined) {
+    return NextResponse.json(
+      { error: "Cliente, produto, quantidade e semana são obrigatórios." },
+      { status: 400 }
+    );
+  }
+  if (Number(quantidade) <= 0) {
+    return NextResponse.json({ error: "Quantidade deve ser maior que zero." }, { status: 400 });
+  }
+
+  const { data, error } = await db
+    .from("reservas")
+    .upsert(
+      {
+        cliente_id,
+        produto_id,
+        semana_referencia,
+        quantidade: Number(quantidade),
+      },
+      { onConflict: "cliente_id,produto_id,semana_referencia" }
+    )
+    .select()
+    .single();
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ reserva: data });
+}

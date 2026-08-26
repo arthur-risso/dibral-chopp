@@ -10,6 +10,8 @@ type FormState = {
   codigo_principal: string;
   codigo_secundario: string;
   whatsapp: string;
+  setor: string;
+  cidade: string;
 };
 
 const EMPTY_FORM: FormState = {
@@ -17,6 +19,8 @@ const EMPTY_FORM: FormState = {
   codigo_principal: "",
   codigo_secundario: "",
   whatsapp: "",
+  setor: "",
+  cidade: "",
 };
 
 export default function ClientesPage() {
@@ -51,7 +55,9 @@ export default function ClientesPage() {
         (c) =>
           (c.nome || "").toLowerCase().includes(termo) ||
           c.codigo_principal.toLowerCase().includes(termo) ||
-          (c.codigo_secundario || "").toLowerCase().includes(termo)
+          (c.codigo_secundario || "").toLowerCase().includes(termo) ||
+          (c.setor || "").toLowerCase().includes(termo) ||
+          (c.cidade || "").toLowerCase().includes(termo)
       );
   }, [clientes, busca, mostrarInativos]);
 
@@ -69,6 +75,8 @@ export default function ClientesPage() {
       codigo_principal: c.codigo_principal,
       codigo_secundario: c.codigo_secundario || "",
       whatsapp: c.whatsapp || "",
+      setor: c.setor || "",
+      cidade: c.cidade || "",
     });
     setErro(null);
     setModalAberto(true);
@@ -161,6 +169,7 @@ export default function ClientesPage() {
             <thead>
               <tr className="bg-bg-elevated text-text-faint text-left">
                 <th className="px-4 py-2.5 font-medium">Cliente</th>
+                <th className="px-4 py-2.5 font-medium hidden lg:table-cell">Setor / Cidade</th>
                 <th className="px-4 py-2.5 font-medium hidden sm:table-cell">Código secundário</th>
                 <th className="px-4 py-2.5 font-medium hidden md:table-cell">WhatsApp</th>
                 <th className="px-4 py-2.5 font-medium">Status</th>
@@ -175,6 +184,9 @@ export default function ClientesPage() {
                     <div className="text-xs text-text-faint font-[family-name:var(--font-mono)]">
                       {c.codigo_principal}
                     </div>
+                  </td>
+                  <td className="px-4 py-2.5 text-text-muted hidden lg:table-cell">
+                    {c.setor || c.cidade ? [c.setor, c.cidade].filter(Boolean).join(" · ") : "—"}
                   </td>
                   <td className="px-4 py-2.5 text-text-muted hidden sm:table-cell font-[family-name:var(--font-mono)]">
                     {c.codigo_secundario || "—"}
@@ -258,6 +270,22 @@ export default function ClientesPage() {
                 className="input"
               />
             </Field>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Setor (opcional)">
+                <input
+                  value={form.setor}
+                  onChange={(e) => setForm({ ...form, setor: e.target.value })}
+                  className="input"
+                />
+              </Field>
+              <Field label="Cidade (opcional)">
+                <input
+                  value={form.cidade}
+                  onChange={(e) => setForm({ ...form, cidade: e.target.value })}
+                  className="input"
+                />
+              </Field>
+            </div>
 
             {erro && <p className="text-sm text-danger">{erro}</p>}
 
