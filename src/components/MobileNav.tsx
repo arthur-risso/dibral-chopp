@@ -10,6 +10,7 @@ const NAV = [
   { href: "/clientes", label: "Clientes" },
   { href: "/estoque", label: "Estoque" },
   { href: "/sugestao", label: "Sugestão de compra" },
+  { href: "/fechamento", label: "Fechamento" },
 ];
 
 export default function MobileNav() {

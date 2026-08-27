@@ -9,6 +9,7 @@ const NAV = [
   { href: "/clientes", label: "Clientes", icon: ClientesIcon },
   { href: "/estoque", label: "Estoque", icon: EstoqueIcon },
   { href: "/sugestao", label: "Sugestão de compra", icon: SugestaoIcon },
+  { href: "/fechamento", label: "Fechamento", icon: FechamentoIcon },
 ];
 
 export default function Sidebar() {
@@ -152,6 +153,15 @@ function SugestaoIcon({ active }: { active?: boolean }) {
     <svg {...iconProps(active)}>
       <path d="M3 17l5-5.5 4 3L21 6" />
       <path d="M15 6h6v6" />
+    </svg>
+  );
+}
+function FechamentoIcon({ active }: { active?: boolean }) {
+  return (
+    <svg {...iconProps(active)}>
+      <path d="M14 3v5a1 1 0 0 0 1 1h5" />
+      <path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2Z" />
+      <path d="M9 13.5l2 2 4-4.5" />
     </svg>
   );
 }

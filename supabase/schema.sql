@@ -13,7 +13,10 @@ create table if not exists produtos (
   marca text not null,
   volume_litros integer not null,
   estoque_minimo integer not null default 5,
-  ordem integer not null default 0
+  ordem integer not null default 0,
+  -- código do produto no Promax, usado para reconhecer as vendas
+  -- importadas do relatório de fechamento (chopp é vendido lá por litro)
+  codigo_promax text unique
 );
 
 -- Clientes --------------------------------------------------------
@@ -67,18 +70,47 @@ alter table reservas enable row level security;
 alter table estoque enable row level security;
 
 -- Produtos fixos da revenda -----------------------------------------
-insert into produtos (nome, marca, volume_litros, ordem, estoque_minimo)
+insert into produtos (nome, marca, volume_litros, ordem, estoque_minimo, codigo_promax)
 values
-  ('Antarctica 30L', 'Antarctica', 30, 1, 5),
-  ('Antarctica 50L', 'Antarctica', 50, 2, 5),
-  ('Brahma 30L', 'Brahma', 30, 3, 5),
-  ('Brahma 50L', 'Brahma', 50, 4, 5),
-  ('Brahma Black 30L', 'Brahma', 30, 5, 3),
-  ('Stella Artois 30L', 'Stella Artois', 30, 6, 3),
-  ('Colorado 30L', 'Colorado', 30, 7, 3)
+  ('Antarctica 30L', 'Antarctica', 30, 1, 5, '2415'),
+  ('Antarctica 50L', 'Antarctica', 50, 2, 5, '2419'),
+  ('Brahma 30L', 'Brahma', 30, 3, 5, '828'),
+  ('Brahma 50L', 'Brahma', 50, 4, 5, '838'),
+  ('Brahma Black 30L', 'Brahma', 30, 5, 3, '8776'),
+  ('Stella Artois 30L', 'Stella Artois', 30, 6, 3, '8037'),
+  ('Colorado 30L', 'Colorado', 30, 7, 3, '15321')
 on conflict (nome) do nothing;
 
 -- Linha de estoque inicial (zerada) para cada produto ----------------
 insert into estoque (produto_id, quantidade_atual)
 select id, 0 from produtos
 on conflict (produto_id) do nothing;
+
+-- Fechamento diário (importação do relatório de pedidos do Promax) ---
+-- Cada arquivo importado vira um "fechamento"; cada linha reconhecida
+-- (cliente + produto batendo com o cadastro) vira uma venda associada.
+create table if not exists fechamentos (
+  id uuid primary key default gen_random_uuid(),
+  data date not null,
+  arquivo_nome text,
+  total_linhas integer not null default 0,
+  linhas_reconhecidas integer not null default 0,
+  criado_em timestamptz not null default now()
+);
+
+create table if not exists fechamento_vendas (
+  id uuid primary key default gen_random_uuid(),
+  fechamento_id uuid not null references fechamentos(id) on delete cascade,
+  cliente_id uuid not null references clientes(id) on delete cascade,
+  produto_id uuid not null references produtos(id) on delete cascade,
+  quantidade_litros integer not null,
+  quantidade_barris integer not null,
+  criado_em timestamptz not null default now()
+);
+
+create index if not exists idx_fechamentos_data on fechamentos (data);
+create index if not exists idx_fechamento_vendas_fechamento on fechamento_vendas (fechamento_id);
+create index if not exists idx_fechamento_vendas_cliente_produto on fechamento_vendas (cliente_id, produto_id);
+
+alter table fechamentos enable row level security;
+alter table fechamento_vendas enable row level security;

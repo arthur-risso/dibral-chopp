@@ -34,3 +34,9 @@ export function formatWeekLabel(iso: string): string {
 export function isCurrentWeek(iso: string): boolean {
   return iso === getMondayISO();
 }
+
+/** Ex.: "26/08/2026" a partir de "2026-08-26" */
+export function formatDateBR(iso: string): string {
+  const d = new Date(iso + "T00:00:00");
+  return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
+}

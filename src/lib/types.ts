@@ -5,6 +5,7 @@ export type Produto = {
   volume_litros: number;
   estoque_minimo: number;
   ordem: number;
+  codigo_promax: string | null;
 };
 
 export type Estoque = {
@@ -66,4 +67,42 @@ export type SugestaoProduto = {
   semanas_com_historico: number;
   necessidade_estimada: number;
   sugestao_puxar: number;
+};
+
+// ---------------------------------------------------------------
+// Fechamento (importação do relatório diário de pedidos do Promax)
+// ---------------------------------------------------------------
+
+export type Fechamento = {
+  id: string;
+  data: string; // YYYY-MM-DD
+  arquivo_nome: string | null;
+  total_linhas: number;
+  linhas_reconhecidas: number;
+  criado_em: string;
+};
+
+export type AlertaFechamento = {
+  tipo: "sem_reserva" | "excedeu_reserva";
+  cliente_id: string;
+  cliente_nome: string;
+  produto_id: string;
+  produto_nome: string;
+  quantidade_vendida_semana: number;
+  quantidade_reservada: number;
+};
+
+export type ItemResumoProduto = {
+  produto_id: string;
+  produto_nome: string;
+  marca: string;
+  barris: number;
+};
+
+export type ResumoFechamento = {
+  fechamento: Fechamento;
+  total_barris: number;
+  por_produto: ItemResumoProduto[];
+  alertas: AlertaFechamento[];
+  linhas_ignoradas: number;
 };

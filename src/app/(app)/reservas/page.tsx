@@ -1,21 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import {
-  getMondayISO,
-  addWeeksISO,
-  formatWeekLabel,
-  isCurrentWeek,
-} from "@/lib/week";
+import { getMondayISO, addWeeksISO, formatWeekLabel, isCurrentWeek } from "@/lib/week";
 import { brandColor } from "@/lib/brandColors";
 import { nomeExibicao } from "@/lib/clientes";
-import type {
-  Cliente,
-  Produto,
-  ReservaComRelacoes,
-  StatusReserva,
-  CelulaReserva,
-} from "@/lib/types";
+import type { Cliente, Produto, ReservaComRelacoes, StatusReserva, CelulaReserva } from "@/lib/types";
 
 const PROXIMO_STATUS: Record<StatusReserva, StatusReserva> = {
   reservado: "entregue",
@@ -44,10 +33,7 @@ export default function ReservasPage() {
   const [ordenarPor, setOrdenarPor] = useState<"codigo" | "nome">("codigo");
 
   async function carregarBase() {
-    const [rc, rp] = await Promise.all([
-      fetch("/api/clientes?ativos=1"),
-      fetch("/api/produtos"),
-    ]);
+    const [rc, rp] = await Promise.all([fetch("/api/clientes?ativos=1"), fetch("/api/produtos")]);
     const [bc, bp] = await Promise.all([rc.json(), rp.json()]);
     setClientes(bc.clientes || []);
     setProdutos(bp.produtos || []);
@@ -63,11 +49,7 @@ export default function ReservasPage() {
     const novosValores: Record<string, string> = {};
     for (const r of lista) {
       const key = cellKey(r.cliente_id, r.produto_id);
-      novasCelulas.set(key, {
-        id: r.id,
-        quantidade: r.quantidade,
-        status: r.status as StatusReserva,
-      });
+      novasCelulas.set(key, { id: r.id, quantidade: r.quantidade, status: r.status as StatusReserva });
       novosValores[key] = String(r.quantidade);
     }
     setCelulas(novasCelulas);
@@ -94,15 +76,13 @@ export default function ReservasPage() {
             (c.codigo_secundario || "").toLowerCase().includes(termo) ||
             (c.nome || "").toLowerCase().includes(termo) ||
             (c.setor || "").toLowerCase().includes(termo) ||
-            (c.cidade || "").toLowerCase().includes(termo),
+            (c.cidade || "").toLowerCase().includes(termo)
         );
 
     return [...lista].sort((a, b) =>
       ordenarPor === "codigo"
-        ? a.codigo_principal.localeCompare(b.codigo_principal, "pt-BR", {
-            numeric: true,
-          })
-        : nomeExibicao(a).localeCompare(nomeExibicao(b), "pt-BR"),
+        ? a.codigo_principal.localeCompare(b.codigo_principal, "pt-BR", { numeric: true })
+        : nomeExibicao(a).localeCompare(nomeExibicao(b), "pt-BR")
     );
   }, [clientes, busca, ordenarPor]);
 
@@ -141,10 +121,7 @@ export default function ReservasPage() {
 
     const valor = Number(texto);
     if (Number.isNaN(valor) || valor <= 0) {
-      setValores((prev) => ({
-        ...prev,
-        [key]: atual ? String(atual.quantidade) : "",
-      }));
+      setValores((prev) => ({ ...prev, [key]: atual ? String(atual.quantidade) : "" }));
       return;
     }
     if (atual && atual.quantidade === valor) return;
@@ -163,22 +140,12 @@ export default function ReservasPage() {
     if (res.ok) {
       setCelulas((prev) => {
         const next = new Map(prev);
-        next.set(key, {
-          id: body.reserva.id,
-          quantidade: body.reserva.quantidade,
-          status: body.reserva.status,
-        });
+        next.set(key, { id: body.reserva.id, quantidade: body.reserva.quantidade, status: body.reserva.status });
         return next;
       });
-      setValores((prev) => ({
-        ...prev,
-        [key]: String(body.reserva.quantidade),
-      }));
+      setValores((prev) => ({ ...prev, [key]: String(body.reserva.quantidade) }));
     } else {
-      setValores((prev) => ({
-        ...prev,
-        [key]: atual ? String(atual.quantidade) : "",
-      }));
+      setValores((prev) => ({ ...prev, [key]: atual ? String(atual.quantidade) : "" }));
     }
   }
 
@@ -203,12 +170,9 @@ export default function ReservasPage() {
     <div>
       <header className="flex flex-wrap items-center justify-between gap-4 mb-6">
         <div>
-          <h1 className="font-[family-name:var(--font-display)] text-2xl text-text">
-            Reservas
-          </h1>
+          <h1 className="font-[family-name:var(--font-display)] text-2xl text-text">Reservas</h1>
           <p className="text-sm text-text-muted mt-0.5">
-            Uma linha por cliente — preencha a quantidade de cada chopp direto
-            na célula
+            Uma linha por cliente — preencha a quantidade de cada chopp direto na célula
           </p>
         </div>
         <div className="flex items-center gap-1 rounded-lg border border-border bg-surface px-1.5 py-1.5">
@@ -221,9 +185,7 @@ export default function ReservasPage() {
           </button>
           <span className="px-2 text-sm font-[family-name:var(--font-mono)] text-text min-w-[132px] text-center">
             {formatWeekLabel(semana)}
-            {isCurrentWeek(semana) && (
-              <span className="ml-1.5 text-amber text-xs">· atual</span>
-            )}
+            {isCurrentWeek(semana) && <span className="ml-1.5 text-amber text-xs">· atual</span>}
           </span>
           <button
             onClick={() => setSemana(addWeeksISO(semana, 1))}
@@ -247,9 +209,7 @@ export default function ReservasPage() {
           <button
             onClick={() => setOrdenarPor("codigo")}
             className={`rounded-md px-2.5 py-1 text-xs ${
-              ordenarPor === "codigo"
-                ? "bg-amber text-[#1a1408] font-medium"
-                : "text-text-muted hover:text-text"
+              ordenarPor === "codigo" ? "bg-amber text-[#1a1408] font-medium" : "text-text-muted hover:text-text"
             }`}
           >
             Código
@@ -257,9 +217,7 @@ export default function ReservasPage() {
           <button
             onClick={() => setOrdenarPor("nome")}
             className={`rounded-md px-2.5 py-1 text-xs ${
-              ordenarPor === "nome"
-                ? "bg-amber text-[#1a1408] font-medium"
-                : "text-text-muted hover:text-text"
+              ordenarPor === "nome" ? "bg-amber text-[#1a1408] font-medium" : "text-text-muted hover:text-text"
             }`}
           >
             Nome
@@ -272,8 +230,7 @@ export default function ReservasPage() {
       ) : clientes.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border py-12 text-center">
           <p className="text-text-muted text-sm">
-            Nenhum cliente ativo cadastrado ainda — cadastre clientes para
-            lançar reservas.
+            Nenhum cliente ativo cadastrado ainda — cadastre clientes para lançar reservas.
           </p>
         </div>
       ) : (
@@ -305,9 +262,7 @@ export default function ReservasPage() {
                 <tr key={c.id} className="hover:bg-surface/40">
                   <td className="sticky left-0 z-10 bg-bg border-r border-b border-border-subtle px-4 py-2 w-56 min-w-[14rem]">
                     <div className="flex items-baseline gap-1.5">
-                      <span className="text-text text-sm">
-                        {nomeExibicao(c)}
-                      </span>
+                      <span className="text-text text-sm">{nomeExibicao(c)}</span>
                       {c.nome && (
                         <span className="text-[11px] text-text-faint font-[family-name:var(--font-mono)]">
                           {c.codigo_principal}
@@ -333,14 +288,9 @@ export default function ReservasPage() {
                             type="number"
                             min={0}
                             value={valores[key] ?? ""}
-                            onChange={(e) =>
-                              onChangeValor(c.id, p.id, e.target.value)
-                            }
+                            onChange={(e) => onChangeValor(c.id, p.id, e.target.value)}
                             onBlur={() => commitCelula(c.id, p.id)}
-                            onKeyDown={(e) =>
-                              e.key === "Enter" &&
-                              (e.target as HTMLInputElement).blur()
-                            }
+                            onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
                             className="w-16 rounded-md bg-bg-elevated border border-border px-1.5 py-1 text-center text-sm font-[family-name:var(--font-mono)] text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber"
                           />
                           {celula && (
@@ -379,8 +329,8 @@ export default function ReservasPage() {
       )}
 
       <p className="text-xs text-text-faint mt-3">
-        Deixe a célula vazia para remover a reserva. Clique na etiqueta abaixo
-        do número para alternar entre reservado → entregue → cancelado.
+        Deixe a célula vazia para remover a reserva. Clique na etiqueta abaixo do número para
+        alternar entre reservado → entregue → cancelado.
       </p>
     </div>
   );
@@ -389,26 +339,14 @@ export default function ReservasPage() {
 function ChevronLeft() {
   return (
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
-      <path
-        d="M15 18l-6-6 6-6"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
+      <path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
 function ChevronRight() {
   return (
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
-      <path
-        d="M9 6l6 6-6 6"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
+      <path d="M9 6l6 6-6 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
