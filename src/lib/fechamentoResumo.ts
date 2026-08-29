@@ -12,14 +12,19 @@ export async function calcularResumoFechamento(
   // Vendas reconhecidas neste fechamento (o dia importado)
   const { data: vendasDoDiaRaw } = await db
     .from("fechamento_vendas")
-    .select("cliente_id, produto_id, quantidade_barris, clientes(nome, codigo_principal), produtos(nome, marca)")
+    .select(
+      "cliente_id, produto_id, quantidade_barris, clientes(nome, codigo_principal, cidade), produtos(nome, marca)"
+    )
     .eq("fechamento_id", fechamento.id);
 
   type VendaRow = {
     cliente_id: string;
     produto_id: string;
     quantidade_barris: number;
-    clientes: { nome: string | null; codigo_principal: string } | { nome: string | null; codigo_principal: string }[] | null;
+    clientes:
+      | { nome: string | null; codigo_principal: string; cidade: string | null }
+      | { nome: string | null; codigo_principal: string; cidade: string | null }[]
+      | null;
     produtos: { nome: string; marca: string } | { nome: string; marca: string }[] | null;
   };
   const vendasDoDia = (vendasDoDiaRaw as VendaRow[]) || [];
@@ -43,6 +48,29 @@ export async function calcularResumoFechamento(
     }
   }
   const porProduto = Array.from(totalPorProduto.values()).sort((a, b) => b.barris - a.barris);
+
+  // Agrupamento por cidade (código principal do cliente, sem repetir),
+  // usado para a mensagem de WhatsApp dos pedidos do dia
+  const codigosPorCidade = new Map<string, Set<string>>();
+  for (const v of vendasDoDia) {
+    const cliente = Array.isArray(v.clientes) ? v.clientes[0] : v.clientes;
+    if (!cliente) continue;
+    const cidade = cliente.cidade?.trim() || "SEM CIDADE";
+    if (!codigosPorCidade.has(cidade)) codigosPorCidade.set(cidade, new Set());
+    codigosPorCidade.get(cidade)!.add(cliente.codigo_principal);
+  }
+
+  const cidadesOrdenadas = Array.from(codigosPorCidade.keys())
+    .filter((c) => c !== "SEM CIDADE")
+    .sort((a, b) => a.localeCompare(b, "pt-BR"));
+  if (codigosPorCidade.has("SEM CIDADE")) cidadesOrdenadas.push("SEM CIDADE");
+
+  const porCidade = cidadesOrdenadas.map((cidade) => ({
+    cidade: cidade.toUpperCase(),
+    codigos: Array.from(codigosPorCidade.get(cidade)!).sort((a, b) =>
+      a.localeCompare(b, "pt-BR", { numeric: true })
+    ),
+  }));
 
   // Fechamentos da mesma semana, até e incluindo a data deste fechamento
   // (para o acumulado usado no alerta de "excedeu a reserva")
@@ -123,6 +151,7 @@ export async function calcularResumoFechamento(
     fechamento,
     total_barris: totalBarris,
     por_produto: porProduto,
+    por_cidade: porCidade,
     alertas,
     linhas_ignoradas: fechamento.total_linhas - fechamento.linhas_reconhecidas,
   };

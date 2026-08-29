@@ -100,10 +100,16 @@ export type ItemResumoProduto = {
   barris: number;
 };
 
+export type ItemCidade = {
+  cidade: string;
+  codigos: string[];
+};
+
 export type ResumoFechamento = {
   fechamento: Fechamento;
   total_barris: number;
   por_produto: ItemResumoProduto[];
+  por_cidade: ItemCidade[];
   alertas: AlertaFechamento[];
   linhas_ignoradas: number;
 };

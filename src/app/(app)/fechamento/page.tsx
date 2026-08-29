@@ -5,6 +5,7 @@ import { formatDateBR } from "@/lib/week";
 import { brandColor } from "@/lib/brandColors";
 import { parsePromaxCsv } from "@/lib/promaxParser";
 import { agregarVendasPromax } from "@/lib/fechamentoAgregacao";
+import { montarMensagemPedidosChopp } from "@/lib/mensagemFechamento";
 import type { ResumoFechamento, Fechamento, Produto, Cliente } from "@/lib/types";
 
 type FechamentoComTotal = Fechamento & { total_barris: number };
@@ -20,6 +21,7 @@ export default function FechamentoPage() {
   const [selecionadoId, setSelecionadoId] = useState<string | null>(null);
   const [sincronizando, setSincronizando] = useState(false);
   const [mensagemSync, setMensagemSync] = useState<string | null>(null);
+  const [copiado, setCopiado] = useState(false);
 
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -86,6 +88,7 @@ export default function FechamentoPage() {
       setResumo(body.resumo);
       setSelecionadoId(body.resumo.fechamento.id);
       setMensagemSync(null);
+      setCopiado(false);
       setArquivo(null);
       if (inputRef.current) inputRef.current.value = "";
       carregarHistorico();
@@ -97,9 +100,30 @@ export default function FechamentoPage() {
   async function verFechamento(id: string) {
     setSelecionadoId(id);
     setMensagemSync(null);
+    setCopiado(false);
     const res = await fetch(`/api/fechamento/${id}`);
     const body = await res.json();
     if (res.ok) setResumo(body.resumo);
+  }
+
+  async function copiarMensagem() {
+    if (!resumo) return;
+    const texto = montarMensagemPedidosChopp(resumo.por_cidade);
+    try {
+      await navigator.clipboard.writeText(texto);
+    } catch {
+      const area = document.createElement("textarea");
+      area.value = texto;
+      area.style.position = "fixed";
+      area.style.opacity = "0";
+      document.body.appendChild(area);
+      area.focus();
+      area.select();
+      document.execCommand("copy");
+      document.body.removeChild(area);
+    }
+    setCopiado(true);
+    setTimeout(() => setCopiado(false), 2000);
   }
 
   async function sincronizar() {
@@ -187,6 +211,29 @@ export default function FechamentoPage() {
             reconhecidas como chopp de clientes cadastrados
             {resumo.linhas_ignoradas > 0 && ` (${resumo.linhas_ignoradas} ignoradas)`}.
           </p>
+
+          {resumo.por_cidade.length > 0 && (
+            <div className="mb-5">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs text-text-muted">Mensagem para o WhatsApp</p>
+                <button
+                  onClick={copiarMensagem}
+                  className="text-xs text-amber hover:text-amber-strong inline-flex items-center gap-1"
+                >
+                  {copiado ? (
+                    <>
+                      <CheckIcon /> Copiado
+                    </>
+                  ) : (
+                    "Copiar mensagem"
+                  )}
+                </button>
+              </div>
+              <pre className="rounded-lg bg-bg-elevated border border-border-subtle px-3 py-2.5 text-xs text-text-muted whitespace-pre-wrap font-[family-name:var(--font-mono)] leading-relaxed">
+                {montarMensagemPedidosChopp(resumo.por_cidade)}
+              </pre>
+            </div>
+          )}
 
           {resumo.por_produto.length > 0 && (
             <div className="mb-5">
