@@ -1,13 +1,8 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { parsePromaxCsv } from "@/lib/promaxParser";
 import { calcularResumoFechamento } from "@/lib/fechamentoResumo";
 import type { Fechamento } from "@/lib/types";
-
-// Só contamos como venda válida linhas de chopp (litros) com pedido "Normal"
-// (não cancelado). A "Situação" (ex.: Preservado Pré-Roteirização) não é
-// mais usada como filtro — conta como venda de qualquer forma.
-const STATUS_VALIDOS = new Set(["Normal"]);
+import type { VendaAgregada } from "@/lib/fechamentoAgregacao";
 
 export async function GET() {
   const db = supabaseAdmin();
@@ -37,97 +32,58 @@ export async function GET() {
   return NextResponse.json({ fechamentos: resultado });
 }
 
+/**
+ * Recebe a lista de vendas JÁ casada com cliente/produto (calculada no
+ * navegador a partir do CSV do Promax) — nunca o arquivo inteiro, para
+ * não esbarrar no limite de tamanho de requisição da Vercel.
+ */
 export async function POST(req: Request) {
   const db = supabaseAdmin();
 
-  let form: FormData;
+  let body: {
+    data?: string;
+    arquivo_nome?: string;
+    total_linhas?: number;
+    linhas_reconhecidas?: number;
+    vendas?: VendaAgregada[];
+  };
   try {
-    form = await req.formData();
+    body = await req.json();
   } catch {
-    return NextResponse.json({ error: "Envie o arquivo como upload (multipart/form-data)." }, { status: 400 });
+    return NextResponse.json({ error: "Requisição inválida." }, { status: 400 });
   }
 
-  const arquivo = form.get("arquivo");
-  if (!arquivo || !(arquivo instanceof File)) {
-    return NextResponse.json({ error: "Nenhum arquivo enviado." }, { status: 400 });
-  }
+  const { data, arquivo_nome, total_linhas, linhas_reconhecidas, vendas } = body;
 
-  const buffer = await arquivo.arrayBuffer();
-  let texto: string;
-  try {
-    texto = new TextDecoder("windows-1252").decode(buffer);
-  } catch {
-    texto = new TextDecoder("utf-8").decode(buffer);
-  }
-
-  const { linhas, totalLinhas } = parsePromaxCsv(texto);
-  if (totalLinhas === 0) {
-    return NextResponse.json({ error: "Não consegui ler nenhuma linha desse arquivo." }, { status: 400 });
-  }
-
-  const [{ data: produtos }, { data: clientes }] = await Promise.all([
-    db.from("produtos").select("id, volume_litros, codigo_promax"),
-    db.from("clientes").select("id, codigo_principal, codigo_secundario"),
-  ]);
-
-  const produtoPorCodigo = new Map<string, { id: string; volume_litros: number }>();
-  for (const p of produtos || []) {
-    if (p.codigo_promax) produtoPorCodigo.set(p.codigo_promax, { id: p.id, volume_litros: p.volume_litros });
-  }
-
-  const clientePorCodigo = new Map<string, string>();
-  for (const c of clientes || []) {
-    clientePorCodigo.set(c.codigo_principal, c.id);
-    if (c.codigo_secundario) clientePorCodigo.set(c.codigo_secundario, c.id);
-  }
-
-  const agregados = new Map<string, { cliente_id: string; produto_id: string; quantidade_litros: number }>();
-  let reconhecidas = 0;
-  let dataDetectada: string | null = null;
-
-  for (const linha of linhas) {
-    if (linha.unidadeVenda !== "L") continue;
-    if (!STATUS_VALIDOS.has(linha.statusPedido)) continue;
-
-    const produto = produtoPorCodigo.get(linha.codigoProduto);
-    if (!produto) continue;
-    const clienteId = clientePorCodigo.get(linha.codigoPdv);
-    if (!clienteId) continue;
-
-    reconhecidas++;
-    if (!dataDetectada && linha.dataPedidoISO) dataDetectada = linha.dataPedidoISO;
-
-    const key = `${clienteId}__${produto.id}`;
-    const atual = agregados.get(key);
-    if (atual) {
-      atual.quantidade_litros += linha.quantidade;
-    } else {
-      agregados.set(key, { cliente_id: clienteId, produto_id: produto.id, quantidade_litros: linha.quantidade });
-    }
-  }
-
-  if (!dataDetectada) {
+  if (!data || !Array.isArray(vendas) || vendas.length === 0) {
     return NextResponse.json(
       { error: "Não encontrei nenhuma linha de chopp reconhecida (cliente e produto cadastrados) nesse arquivo." },
       { status: 400 }
     );
   }
 
+  const { data: produtos } = await db.from("produtos").select("id, volume_litros");
+  const volumePorProduto = new Map((produtos || []).map((p) => [p.id, p.volume_litros]));
+
+  const vendasValidas = vendas.filter((v) => volumePorProduto.has(v.produto_id) && v.cliente_id && v.quantidade_litros > 0);
+  if (vendasValidas.length === 0) {
+    return NextResponse.json({ error: "Nenhuma venda válida para importar." }, { status: 400 });
+  }
+
   const { data: fechamento, error: errFechamento } = await db
     .from("fechamentos")
     .insert({
-      data: dataDetectada,
-      arquivo_nome: arquivo.name,
-      total_linhas: totalLinhas,
-      linhas_reconhecidas: reconhecidas,
+      data,
+      arquivo_nome: arquivo_nome || null,
+      total_linhas: total_linhas ?? vendasValidas.length,
+      linhas_reconhecidas: linhas_reconhecidas ?? vendasValidas.length,
     })
     .select()
     .single();
 
   if (errFechamento) return NextResponse.json({ error: errFechamento.message }, { status: 500 });
 
-  const volumePorProduto = new Map((produtos || []).map((p) => [p.id, p.volume_litros]));
-  const vendasParaInserir = Array.from(agregados.values()).map((v) => {
+  const vendasParaInserir = vendasValidas.map((v) => {
     const volume = volumePorProduto.get(v.produto_id) || 1;
     return {
       fechamento_id: fechamento.id,
@@ -138,10 +94,8 @@ export async function POST(req: Request) {
     };
   });
 
-  if (vendasParaInserir.length > 0) {
-    const { error: errVendas } = await db.from("fechamento_vendas").insert(vendasParaInserir);
-    if (errVendas) return NextResponse.json({ error: errVendas.message }, { status: 500 });
-  }
+  const { error: errVendas } = await db.from("fechamento_vendas").insert(vendasParaInserir);
+  if (errVendas) return NextResponse.json({ error: errVendas.message }, { status: 500 });
 
   const resumo = await calcularResumoFechamento(db, fechamento as Fechamento);
   return NextResponse.json({ resumo }, { status: 201 });

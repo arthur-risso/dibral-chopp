@@ -19,7 +19,7 @@ cadastro de usuários — apenas uma senha de acesso.
 - **Reservas** — lançamento semanal por cliente/produto, com navegação entre semanas
 - **Clientes** — cadastro, edição, ativação/desativação
 - **Estoque** — indicadores visuais em formato de barril, edição rápida e alerta de estoque mínimo por produto
-- **Fechamento** — importe o CSV de pedidos do dia exportado do Promax; o sistema reconhece as linhas de chopp (vendido por litro no Promax, convertido para barris), soma o total do dia, mostra o chopp mais vendido e aponta alertas: clientes que compraram sem ter reservado, ou que já pegaram mais do que reservaram na semana. Fica um histórico de todos os fechamentos importados.
+- **Fechamento** — importe o CSV de pedidos do dia exportado do Promax; o sistema reconhece as linhas de chopp (vendido por litro no Promax, convertido para barris), soma o total do dia, mostra o chopp mais vendido e aponta alertas: clientes que compraram sem ter reservado, ou que já pegaram mais do que reservaram na semana. Um botão "Concluir fechamento e sincronizar" desconta o que foi entregue das reservas da semana (marcando como entregue quando zerar) e cria uma reserva já entregue para quem comprou sem ter reservado. Fica um histórico de todos os fechamentos importados.
 - **Sugestão de compra** — média móvel das últimas 4 semanas combinada com as reservas já feitas na semana atual
 
 ## Como colocar em produção

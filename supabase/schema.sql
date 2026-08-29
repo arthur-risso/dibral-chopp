@@ -40,7 +40,9 @@ create table if not exists reservas (
   id uuid primary key default gen_random_uuid(),
   cliente_id uuid not null references clientes(id) on delete cascade,
   produto_id uuid not null references produtos(id) on delete restrict,
-  quantidade integer not null check (quantidade > 0),
+  -- 0 = tudo que foi reservado já foi retirado (a sincronização do
+  -- fechamento decrementa esse valor conforme as entregas acontecem)
+  quantidade integer not null default 0 check (quantidade >= 0),
   semana_referencia date not null,
   status text not null default 'reservado'
     check (status in ('reservado', 'entregue', 'cancelado')),
@@ -95,6 +97,9 @@ create table if not exists fechamentos (
   arquivo_nome text,
   total_linhas integer not null default 0,
   linhas_reconhecidas integer not null default 0,
+  -- preenchido quando "Concluir fechamento e sincronizar" é usado,
+  -- para não aplicar o desconto nas reservas mais de uma vez
+  sincronizado_em timestamptz,
   criado_em timestamptz not null default now()
 );
 

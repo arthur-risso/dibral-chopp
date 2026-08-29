@@ -79,6 +79,7 @@ export type Fechamento = {
   arquivo_nome: string | null;
   total_linhas: number;
   linhas_reconhecidas: number;
+  sincronizado_em: string | null;
   criado_em: string;
 };
 

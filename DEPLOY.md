@@ -32,6 +32,10 @@ Tempo estimado: 20–30 minutos na primeira vez.
    > Já tinha a grade de reservas funcionando e agora está atualizando para
    > ganhar a seção de Fechamento (importação do Promax)? Rode também
    > `supabase/migration_fechamento.sql`.
+   >
+   > Já tinha o Fechamento funcionando e agora está atualizando para ganhar
+   > o botão de sincronizar com as reservas? Rode também
+   > `supabase/migration_sincronizacao_fechamento.sql`.
 8. Confirme: vá em **Table Editor** (menu à esquerda) e veja se existem as tabelas `produtos`, `clientes`, `reservas` e `estoque`, com os 7 chopps já listados em `produtos`.
 9. Agora vá em **Project Settings** (ícone de engrenagem, embaixo à esquerda) → **API**.
 10. Você vai precisar de dois valores desta página — deixe-a aberta ou anote:

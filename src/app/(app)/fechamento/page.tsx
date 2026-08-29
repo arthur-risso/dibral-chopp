@@ -3,7 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 import { formatDateBR } from "@/lib/week";
 import { brandColor } from "@/lib/brandColors";
-import type { ResumoFechamento, Fechamento } from "@/lib/types";
+import { parsePromaxCsv } from "@/lib/promaxParser";
+import { agregarVendasPromax } from "@/lib/fechamentoAgregacao";
+import type { ResumoFechamento, Fechamento, Produto, Cliente } from "@/lib/types";
 
 type FechamentoComTotal = Fechamento & { total_barris: number };
 
@@ -16,6 +18,8 @@ export default function FechamentoPage() {
   const [historico, setHistorico] = useState<FechamentoComTotal[]>([]);
   const [carregandoHistorico, setCarregandoHistorico] = useState(true);
   const [selecionadoId, setSelecionadoId] = useState<string | null>(null);
+  const [sincronizando, setSincronizando] = useState(false);
+  const [mensagemSync, setMensagemSync] = useState<string | null>(null);
 
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -39,9 +43,41 @@ export default function FechamentoPage() {
     setEnviando(true);
     setErro(null);
     try {
-      const formData = new FormData();
-      formData.append("arquivo", arquivo);
-      const res = await fetch("/api/fechamento", { method: "POST", body: formData });
+      // Lê e filtra o arquivo aqui no navegador — só o resultado (poucas
+      // linhas de chopp já reconhecidas) é enviado ao servidor, para não
+      // esbarrar no limite de tamanho de requisição da hospedagem.
+      const buffer = await arquivo.arrayBuffer();
+      const texto = new TextDecoder("windows-1252").decode(buffer);
+      const { linhas, totalLinhas } = parsePromaxCsv(texto);
+
+      if (totalLinhas === 0) {
+        setErro("Não consegui ler nenhuma linha desse arquivo.");
+        return;
+      }
+
+      const [rProdutos, rClientes] = await Promise.all([fetch("/api/produtos"), fetch("/api/clientes")]);
+      const [bProdutos, bClientes] = await Promise.all([rProdutos.json(), rClientes.json()]);
+      const produtos: Produto[] = bProdutos.produtos || [];
+      const clientes: Cliente[] = bClientes.clientes || [];
+
+      const { vendas, reconhecidas, dataDetectada } = agregarVendasPromax(linhas, produtos, clientes);
+
+      if (!dataDetectada || vendas.length === 0) {
+        setErro("Não encontrei nenhuma linha de chopp reconhecida (cliente e produto cadastrados) nesse arquivo.");
+        return;
+      }
+
+      const res = await fetch("/api/fechamento", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          data: dataDetectada,
+          arquivo_nome: arquivo.name,
+          total_linhas: totalLinhas,
+          linhas_reconhecidas: reconhecidas,
+          vendas,
+        }),
+      });
       const body = await res.json();
       if (!res.ok) {
         setErro(body.error || "Não foi possível processar o arquivo.");
@@ -49,6 +85,7 @@ export default function FechamentoPage() {
       }
       setResumo(body.resumo);
       setSelecionadoId(body.resumo.fechamento.id);
+      setMensagemSync(null);
       setArquivo(null);
       if (inputRef.current) inputRef.current.value = "";
       carregarHistorico();
@@ -59,9 +96,31 @@ export default function FechamentoPage() {
 
   async function verFechamento(id: string) {
     setSelecionadoId(id);
+    setMensagemSync(null);
     const res = await fetch(`/api/fechamento/${id}`);
     const body = await res.json();
     if (res.ok) setResumo(body.resumo);
+  }
+
+  async function sincronizar() {
+    if (!resumo) return;
+    setSincronizando(true);
+    setErro(null);
+    try {
+      const res = await fetch(`/api/fechamento/${resumo.fechamento.id}/sincronizar`, { method: "POST" });
+      const body = await res.json();
+      if (!res.ok) {
+        setErro(body.error || "Não foi possível sincronizar.");
+        return;
+      }
+      setResumo(body.resumo);
+      setMensagemSync(
+        `${body.reservas_atualizadas} reserva(s) atualizada(s) e ${body.reservas_criadas} nova(s) criada(s).`
+      );
+      carregarHistorico();
+    } finally {
+      setSincronizando(false);
+    }
   }
 
   async function excluirFechamento(f: FechamentoComTotal) {
@@ -183,6 +242,36 @@ export default function FechamentoPage() {
               </ul>
             )}
           </div>
+
+          <div className="mt-5 pt-4 border-t border-border-subtle">
+            {resumo.fechamento.sincronizado_em ? (
+              <p className="text-sm text-ok flex items-center gap-1.5">
+                <CheckIcon />
+                Sincronizado com as reservas em{" "}
+                {new Date(resumo.fechamento.sincronizado_em).toLocaleString("pt-BR", {
+                  day: "2-digit",
+                  month: "2-digit",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </p>
+            ) : (
+              <div>
+                <button
+                  onClick={sincronizar}
+                  disabled={sincronizando}
+                  className="rounded-lg bg-amber text-[#1a1408] font-medium px-4 py-2 text-sm hover:bg-amber-strong disabled:opacity-50"
+                >
+                  {sincronizando ? "Sincronizando…" : "Concluir fechamento e sincronizar"}
+                </button>
+                <p className="text-xs text-text-faint mt-2">
+                  Desconta o que foi entregue hoje das reservas da semana (marcando como entregue
+                  quando zerar) e cria uma reserva já entregue para quem comprou sem ter reservado.
+                </p>
+              </div>
+            )}
+            {mensagemSync && <p className="text-xs text-text-muted mt-2">{mensagemSync}</p>}
+          </div>
         </div>
       )}
 
@@ -203,6 +292,7 @@ export default function FechamentoPage() {
                   <th className="px-4 py-2.5 font-medium">Data</th>
                   <th className="px-4 py-2.5 font-medium hidden sm:table-cell">Arquivo</th>
                   <th className="px-4 py-2.5 font-medium text-right">Barris</th>
+                  <th className="px-4 py-2.5 font-medium hidden sm:table-cell">Sync</th>
                   <th className="px-4 py-2.5 font-medium text-right">Ações</th>
                 </tr>
               </thead>
@@ -220,6 +310,15 @@ export default function FechamentoPage() {
                     </td>
                     <td className="px-4 py-2.5 text-right font-[family-name:var(--font-mono)] text-text">
                       {f.total_barris}
+                    </td>
+                    <td className="px-4 py-2.5 hidden sm:table-cell">
+                      {f.sincronizado_em ? (
+                        <span className="inline-flex items-center rounded-full bg-[var(--ok-bg)] text-ok px-2 py-0.5 text-[11px]">
+                          sincronizado
+                        </span>
+                      ) : (
+                        <span className="text-[11px] text-text-faint">pendente</span>
+                      )}
                     </td>
                     <td className="px-4 py-2.5">
                       <div className="flex items-center justify-end gap-3">
@@ -245,5 +344,13 @@ export default function FechamentoPage() {
         )}
       </div>
     </div>
+  );
+}
+
+function CheckIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+      <path d="M5 13l4 4L19 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
   );
 }
