@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import Modal from "@/components/Modal";
 import { nomeExibicao } from "@/lib/clientes";
+import { parseClientesCsv, decodificarTextoAutomatico, type LinhaImportacao } from "@/lib/clienteImportParser";
 import type { Cliente } from "@/lib/types";
 
 type FormState = {
@@ -34,6 +35,16 @@ export default function ClientesPage() {
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+
+  const [importAberto, setImportAberto] = useState(false);
+  const [linhasImportacao, setLinhasImportacao] = useState<LinhaImportacao[]>([]);
+  const [nomeArquivoImportacao, setNomeArquivoImportacao] = useState<string | null>(null);
+  const [erroImportacao, setErroImportacao] = useState<string | null>(null);
+  const [importando, setImportando] = useState(false);
+  const [resultadoImportacao, setResultadoImportacao] = useState<{ importados: number; ignorados: number } | null>(
+    null
+  );
+  const inputImportacaoRef = useRef<HTMLInputElement>(null);
 
   async function carregar() {
     setLoading(true);
@@ -124,6 +135,67 @@ export default function ClientesPage() {
     carregar();
   }
 
+  function abrirImportacao() {
+    setLinhasImportacao([]);
+    setNomeArquivoImportacao(null);
+    setErroImportacao(null);
+    setResultadoImportacao(null);
+    setImportAberto(true);
+  }
+
+  async function selecionarArquivoImportacao(file: File) {
+    setErroImportacao(null);
+    setResultadoImportacao(null);
+    setNomeArquivoImportacao(file.name);
+    try {
+      const buffer = await file.arrayBuffer();
+      const texto = decodificarTextoAutomatico(buffer);
+      const linhas = parseClientesCsv(texto);
+      if (linhas.length === 0) {
+        setErroImportacao("Não encontrei nenhuma linha nesse arquivo.");
+        setLinhasImportacao([]);
+        return;
+      }
+      setLinhasImportacao(linhas);
+    } catch {
+      setErroImportacao("Não consegui ler esse arquivo. Confirme que é um CSV.");
+    }
+  }
+
+  async function confirmarImportacao() {
+    const validas = linhasImportacao.filter((l) => !l.erro);
+    if (validas.length === 0) return;
+    setImportando(true);
+    setErroImportacao(null);
+    try {
+      const res = await fetch("/api/clientes/importar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          clientes: validas.map((l) => ({
+            nome: l.nome,
+            codigo_principal: l.codigo_principal,
+            codigo_secundario: l.codigo_secundario,
+            whatsapp: l.whatsapp,
+            setor: l.setor,
+            cidade: l.cidade,
+          })),
+        }),
+      });
+      const body = await res.json();
+      if (!res.ok) {
+        setErroImportacao(body.error || "Não foi possível importar.");
+        return;
+      }
+      setResultadoImportacao({ importados: body.importados, ignorados: body.ignorados });
+      setLinhasImportacao([]);
+      if (inputImportacaoRef.current) inputImportacaoRef.current.value = "";
+      carregar();
+    } finally {
+      setImportando(false);
+    }
+  }
+
   return (
     <div>
       <header className="flex flex-wrap items-center justify-between gap-4 mb-6">
@@ -133,12 +205,20 @@ export default function ClientesPage() {
             {clientes.filter((c) => c.ativo).length} clientes ativos
           </p>
         </div>
-        <button
-          onClick={abrirNovo}
-          className="rounded-lg bg-amber text-[#1a1408] font-medium px-4 py-2 text-sm hover:bg-amber-strong transition"
-        >
-          + Novo cliente
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={abrirImportacao}
+            className="rounded-lg border border-border bg-surface text-text font-medium px-4 py-2 text-sm hover:bg-surface-hover transition"
+          >
+            Importar planilha
+          </button>
+          <button
+            onClick={abrirNovo}
+            className="rounded-lg bg-amber text-[#1a1408] font-medium px-4 py-2 text-sm hover:bg-amber-strong transition"
+          >
+            + Novo cliente
+          </button>
+        </div>
       </header>
 
       <div className="flex flex-wrap items-center gap-3 mb-4">
@@ -304,6 +384,99 @@ export default function ClientesPage() {
                 {salvando ? "Salvando…" : "Salvar"}
               </button>
             </div>
+          </div>
+        </Modal>
+      )}
+
+      {importAberto && (
+        <Modal title="Importar clientes em massa" onClose={() => setImportAberto(false)}>
+          <div className="space-y-4">
+            <div className="rounded-lg bg-bg border border-border-subtle px-3 py-2.5 text-sm text-text-muted">
+              <a href="/modelo-clientes.xlsx" download className="text-amber hover:text-amber-strong">
+                Baixar modelo (.xlsx)
+              </a>{" "}
+              — preencha no Excel, depois salve como <strong>CSV</strong> (Arquivo → Salvar como →
+              CSV) e envie o CSV aqui embaixo.
+            </div>
+
+            <input
+              ref={inputImportacaoRef}
+              type="file"
+              accept=".csv"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) selecionarArquivoImportacao(file);
+              }}
+              className="w-full text-sm text-text-muted file:mr-3 file:rounded-lg file:border-0 file:bg-bg-elevated file:px-3 file:py-2 file:text-sm file:text-text hover:file:bg-surface-hover file:cursor-pointer"
+            />
+
+            {erroImportacao && <p className="text-sm text-danger">{erroImportacao}</p>}
+
+            {resultadoImportacao && (
+              <p className="text-sm text-ok">
+                {resultadoImportacao.importados} cliente(s) importado(s)
+                {resultadoImportacao.ignorados > 0 &&
+                  ` — ${resultadoImportacao.ignorados} ignorado(s) por já existir código igual`}
+                .
+              </p>
+            )}
+
+            {linhasImportacao.length > 0 && (
+              <>
+                <p className="text-xs text-text-muted">
+                  {nomeArquivoImportacao} — {linhasImportacao.filter((l) => !l.erro).length} válida(s) de{" "}
+                  {linhasImportacao.length} linha(s)
+                </p>
+                <div className="max-h-56 overflow-y-auto rounded-lg border border-border-subtle">
+                  <table className="w-full text-xs">
+                    <thead className="sticky top-0 bg-bg-elevated">
+                      <tr className="text-left text-text-faint">
+                        <th className="px-2.5 py-1.5 font-medium">Linha</th>
+                        <th className="px-2.5 py-1.5 font-medium">Cliente</th>
+                        <th className="px-2.5 py-1.5 font-medium">Código</th>
+                        <th className="px-2.5 py-1.5 font-medium">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {linhasImportacao.map((l) => (
+                        <tr key={l.linha} className="border-t border-border-subtle">
+                          <td className="px-2.5 py-1.5 text-text-faint">{l.linha}</td>
+                          <td className="px-2.5 py-1.5 text-text-muted">{l.nome || "—"}</td>
+                          <td className="px-2.5 py-1.5 font-[family-name:var(--font-mono)] text-text-muted">
+                            {l.codigo_principal || "—"}
+                          </td>
+                          <td className="px-2.5 py-1.5">
+                            {l.erro ? (
+                              <span className="text-danger">{l.erro}</span>
+                            ) : (
+                              <span className="text-ok">OK</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="flex justify-end gap-2">
+                  <button
+                    onClick={() => setImportAberto(false)}
+                    className="rounded-lg px-4 py-2 text-sm text-text-muted hover:text-text"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={confirmarImportacao}
+                    disabled={importando || linhasImportacao.every((l) => l.erro)}
+                    className="rounded-lg bg-amber text-[#1a1408] font-medium px-4 py-2 text-sm hover:bg-amber-strong disabled:opacity-50"
+                  >
+                    {importando
+                      ? "Importando…"
+                      : `Importar ${linhasImportacao.filter((l) => !l.erro).length} cliente(s)`}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </Modal>
       )}
