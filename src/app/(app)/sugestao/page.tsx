@@ -1,23 +1,25 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { formatWeekLabel } from "@/lib/week";
 import { brandColor } from "@/lib/brandColors";
 import type { SugestaoProduto } from "@/lib/types";
+import { api, errorMessage } from "@/lib/apiClient";
 
 export default function SugestaoPage() {
   const [sugestoes, setSugestoes] = useState<SugestaoProduto[]>([]);
   const [semanasConsideradas, setSemanasConsideradas] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [erro, setErro] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch("/api/sugestao")
-      .then((r) => r.json())
+    api
+      .get<{ sugestoes: SugestaoProduto[]; semanas_consideradas: string[] }>("/api/sugestao")
       .then((body) => {
-        setSugestoes(body.sugestoes || []);
-        setSemanasConsideradas(body.semanas_consideradas || []);
-        setLoading(false);
-      });
+        setSugestoes(body.sugestoes);
+        setSemanasConsideradas(body.semanas_consideradas);
+      })
+      .catch((e) => setErro(errorMessage(e)))
+      .finally(() => setLoading(false));
   }, []);
 
   const totalPuxar = sugestoes.reduce((acc, s) => acc + s.sugestao_puxar, 0);
@@ -39,6 +41,8 @@ export default function SugestaoPage() {
 
       {loading ? (
         <p className="text-sm text-text-faint">Calculando…</p>
+      ) : erro ? (
+        <p className="text-sm text-danger">{erro}</p>
       ) : (
         <>
           <div className="rounded-xl border border-border bg-surface p-4 mb-6 flex items-center justify-between">

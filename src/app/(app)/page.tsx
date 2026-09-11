@@ -6,6 +6,7 @@ import BarrilGauge from "@/components/BarrilGauge";
 import { brandColor } from "@/lib/brandColors";
 import { formatWeekLabel, getMondayISO, isCurrentWeek } from "@/lib/week";
 import type { ProdutoComEstoque, ReservaComRelacoes, SugestaoProduto, Cliente } from "@/lib/types";
+import { api, errorMessage } from "@/lib/apiClient";
 
 export default function PainelPage() {
   const [produtos, setProdutos] = useState<ProdutoComEstoque[]>([]);
@@ -13,28 +14,28 @@ export default function PainelPage() {
   const [sugestoes, setSugestoes] = useState<SugestaoProduto[]>([]);
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [loading, setLoading] = useState(true);
+  const [erro, setErro] = useState<string | null>(null);
 
   const semanaAtual = getMondayISO();
 
   useEffect(() => {
     async function carregar() {
-      const [rEstoque, rReservas, rSugestao, rClientes] = await Promise.all([
-        fetch("/api/estoque"),
-        fetch(`/api/reservas?semana=${semanaAtual}`),
-        fetch("/api/sugestao"),
-        fetch("/api/clientes?ativos=1"),
-      ]);
-      const [bEstoque, bReservas, bSugestao, bClientes] = await Promise.all([
-        rEstoque.json(),
-        rReservas.json(),
-        rSugestao.json(),
-        rClientes.json(),
-      ]);
-      setProdutos(bEstoque.produtos || []);
-      setReservas(bReservas.reservas || []);
-      setSugestoes(bSugestao.sugestoes || []);
-      setClientes(bClientes.clientes || []);
-      setLoading(false);
+      try {
+        const [bEstoque, bReservas, bSugestao, bClientes] = await Promise.all([
+          api.get<{ produtos: ProdutoComEstoque[] }>("/api/estoque"),
+          api.get<{ reservas: ReservaComRelacoes[] }>(`/api/reservas?semana=${semanaAtual}`),
+          api.get<{ sugestoes: SugestaoProduto[] }>("/api/sugestao"),
+          api.get<{ clientes: Cliente[] }>("/api/clientes?ativos=1"),
+        ]);
+        setProdutos(bEstoque.produtos);
+        setReservas(bReservas.reservas);
+        setSugestoes(bSugestao.sugestoes);
+        setClientes(bClientes.clientes);
+      } catch (e) {
+        setErro(errorMessage(e));
+      } finally {
+        setLoading(false);
+      }
     }
     carregar();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -59,6 +60,8 @@ export default function PainelPage() {
 
       {loading ? (
         <p className="text-sm text-text-faint">Carregando…</p>
+      ) : erro ? (
+        <p className="text-sm text-danger">{erro}</p>
       ) : (
         <>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">

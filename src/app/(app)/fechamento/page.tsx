@@ -7,8 +7,14 @@ import { parsePromaxCsv } from "@/lib/promaxParser";
 import { agregarVendasPromax } from "@/lib/fechamentoAgregacao";
 import { montarMensagemPedidosChopp } from "@/lib/mensagemFechamento";
 import type { ResumoFechamento, Fechamento, Produto, Cliente } from "@/lib/types";
+import { api, errorMessage } from "@/lib/apiClient";
 
 type FechamentoComTotal = Fechamento & { total_barris: number };
+type ResultadoSincronizacao = {
+  resumo: ResumoFechamento;
+  reservas_atualizadas: number;
+  reservas_criadas: number;
+};
 
 export default function FechamentoPage() {
   const [arquivo, setArquivo] = useState<File | null>(null);
@@ -23,19 +29,32 @@ export default function FechamentoPage() {
   const [mensagemSync, setMensagemSync] = useState<string | null>(null);
   const [copiado, setCopiado] = useState(false);
 
+  const [erroHistorico, setErroHistorico] = useState<string | null>(null);
+
   const inputRef = useRef<HTMLInputElement>(null);
 
-  async function carregarHistorico() {
-    setCarregandoHistorico(true);
-    const res = await fetch("/api/fechamento");
-    const body = await res.json();
-    setHistorico(body.fechamentos || []);
-    setCarregandoHistorico(false);
-  }
+  const [versaoHistorico, setVersaoHistorico] = useState(0);
+  const recarregarHistorico = () => setVersaoHistorico((v) => v + 1);
 
   useEffect(() => {
-    carregarHistorico();
-  }, []);
+    let ativo = true;
+    api
+      .get<{ fechamentos: FechamentoComTotal[] }>("/api/fechamento")
+      .then((body) => {
+        if (!ativo) return;
+        setHistorico(body.fechamentos);
+        setErroHistorico(null);
+      })
+      .catch((e) => {
+        if (ativo) setErroHistorico(errorMessage(e));
+      })
+      .finally(() => {
+        if (ativo) setCarregandoHistorico(false);
+      });
+    return () => {
+      ativo = false;
+    };
+  }, [versaoHistorico]);
 
   async function processar() {
     if (!arquivo) {
@@ -57,41 +76,38 @@ export default function FechamentoPage() {
         return;
       }
 
-      const [rProdutos, rClientes] = await Promise.all([fetch("/api/produtos"), fetch("/api/clientes")]);
-      const [bProdutos, bClientes] = await Promise.all([rProdutos.json(), rClientes.json()]);
-      const produtos: Produto[] = bProdutos.produtos || [];
-      const clientes: Cliente[] = bClientes.clientes || [];
+      const [bProdutos, bClientes] = await Promise.all([
+        api.get<{ produtos: Produto[] }>("/api/produtos"),
+        api.get<{ clientes: Cliente[] }>("/api/clientes"),
+      ]);
 
-      const { vendas, reconhecidas, dataDetectada } = agregarVendasPromax(linhas, produtos, clientes);
+      const { vendas, reconhecidas, dataDetectada } = agregarVendasPromax(
+        linhas,
+        bProdutos.produtos,
+        bClientes.clientes
+      );
 
       if (!dataDetectada || vendas.length === 0) {
         setErro("Não encontrei nenhuma linha de chopp reconhecida (cliente e produto cadastrados) nesse arquivo.");
         return;
       }
 
-      const res = await fetch("/api/fechamento", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          data: dataDetectada,
-          arquivo_nome: arquivo.name,
-          total_linhas: totalLinhas,
-          linhas_reconhecidas: reconhecidas,
-          vendas,
-        }),
+      const body = await api.post<{ resumo: ResumoFechamento }>("/api/fechamento", {
+        data: dataDetectada,
+        arquivo_nome: arquivo.name,
+        total_linhas: totalLinhas,
+        linhas_reconhecidas: reconhecidas,
+        vendas,
       });
-      const body = await res.json();
-      if (!res.ok) {
-        setErro(body.error || "Não foi possível processar o arquivo.");
-        return;
-      }
       setResumo(body.resumo);
       setSelecionadoId(body.resumo.fechamento.id);
       setMensagemSync(null);
       setCopiado(false);
       setArquivo(null);
       if (inputRef.current) inputRef.current.value = "";
-      carregarHistorico();
+      recarregarHistorico();
+    } catch (e) {
+      setErro(errorMessage(e));
     } finally {
       setEnviando(false);
     }
@@ -101,9 +117,12 @@ export default function FechamentoPage() {
     setSelecionadoId(id);
     setMensagemSync(null);
     setCopiado(false);
-    const res = await fetch(`/api/fechamento/${id}`);
-    const body = await res.json();
-    if (res.ok) setResumo(body.resumo);
+    try {
+      const body = await api.get<{ resumo: ResumoFechamento }>(`/api/fechamento/${id}`);
+      setResumo(body.resumo);
+    } catch (e) {
+      setErroHistorico(errorMessage(e));
+    }
   }
 
   async function copiarMensagem() {
@@ -131,17 +150,14 @@ export default function FechamentoPage() {
     setSincronizando(true);
     setErro(null);
     try {
-      const res = await fetch(`/api/fechamento/${resumo.fechamento.id}/sincronizar`, { method: "POST" });
-      const body = await res.json();
-      if (!res.ok) {
-        setErro(body.error || "Não foi possível sincronizar.");
-        return;
-      }
+      const body = await api.post<ResultadoSincronizacao>(`/api/fechamento/${resumo.fechamento.id}/sincronizar`);
       setResumo(body.resumo);
       setMensagemSync(
         `${body.reservas_atualizadas} reserva(s) atualizada(s) e ${body.reservas_criadas} nova(s) criada(s).`
       );
-      carregarHistorico();
+      recarregarHistorico();
+    } catch (e) {
+      setErro(errorMessage(e));
     } finally {
       setSincronizando(false);
     }
@@ -149,12 +165,17 @@ export default function FechamentoPage() {
 
   async function excluirFechamento(f: FechamentoComTotal) {
     if (!confirm(`Excluir o fechamento de ${formatDateBR(f.data)}? Essa ação não pode ser desfeita.`)) return;
-    await fetch(`/api/fechamento/${f.id}`, { method: "DELETE" });
+    try {
+      await api.delete(`/api/fechamento/${f.id}`);
+    } catch (e) {
+      setErroHistorico(errorMessage(e));
+      return;
+    }
     if (selecionadoId === f.id) {
       setResumo(null);
       setSelecionadoId(null);
     }
-    carregarHistorico();
+    recarregarHistorico();
   }
 
   return (
@@ -325,6 +346,7 @@ export default function FechamentoPage() {
       {/* Histórico */}
       <div>
         <p className="text-xs text-text-muted mb-3">Histórico de fechamentos</p>
+        {erroHistorico && <p className="text-sm text-danger mb-3">{erroHistorico}</p>}
         {carregandoHistorico ? (
           <p className="text-sm text-text-faint">Carregando…</p>
         ) : historico.length === 0 ? (

@@ -1,25 +1,18 @@
-import { NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { json, parseBody, parseWith, route } from "@/lib/server/http";
+import { dbError, getDb } from "@/lib/server/db";
+import { idParamsSchema, produtoAtualizarSchema } from "@/lib/server/schemas";
 
-export async function PUT(
-  req: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id } = await params;
-  const db = supabaseAdmin();
-  const body = await req.json();
+export const PUT = route<{ id: string }>(async (req, params) => {
+  const { id } = parseWith(idParamsSchema, params);
+  const { estoque_minimo } = await parseBody(req, produtoAtualizarSchema);
 
-  if (body.estoque_minimo === undefined || Number(body.estoque_minimo) < 0) {
-    return NextResponse.json({ error: "estoque_minimo inválido." }, { status: 400 });
-  }
-
-  const { data, error } = await db
+  const { data, error } = await getDb()
     .from("produtos")
-    .update({ estoque_minimo: Number(body.estoque_minimo) })
+    .update({ estoque_minimo })
     .eq("id", id)
     .select()
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ produto: data });
-}
+  if (error) throw dbError(error, { notFound: "Produto não encontrado." });
+  return json({ produto: data });
+});

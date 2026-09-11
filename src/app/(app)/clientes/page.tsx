@@ -5,6 +5,7 @@ import Modal from "@/components/Modal";
 import { nomeExibicao } from "@/lib/clientes";
 import { parseClientesCsv, decodificarTextoAutomatico, type LinhaImportacao } from "@/lib/clienteImportParser";
 import type { Cliente } from "@/lib/types";
+import { api, errorMessage } from "@/lib/apiClient";
 
 type FormState = {
   nome: string;
@@ -45,18 +46,28 @@ export default function ClientesPage() {
     null
   );
   const inputImportacaoRef = useRef<HTMLInputElement>(null);
+  const [erroLista, setErroLista] = useState<string | null>(null);
 
-  async function carregar() {
-    setLoading(true);
-    const res = await fetch("/api/clientes");
-    const body = await res.json();
-    setClientes(body.clientes || []);
-    setLoading(false);
-  }
+  const [versao, setVersao] = useState(0);
+  const recarregar = () => setVersao((v) => v + 1);
 
   useEffect(() => {
-    carregar();
-  }, []);
+    let ativo = true;
+    api
+      .get<{ clientes: Cliente[] }>("/api/clientes")
+      .then((body) => {
+        if (ativo) setClientes(body.clientes);
+      })
+      .catch((e) => {
+        if (ativo) setErroLista(errorMessage(e));
+      })
+      .finally(() => {
+        if (ativo) setLoading(false);
+      });
+    return () => {
+      ativo = false;
+    };
+  }, [versao]);
 
   const listaFiltrada = useMemo(() => {
     const termo = busca.toLowerCase();
@@ -101,38 +112,36 @@ export default function ClientesPage() {
     setSalvando(true);
     setErro(null);
     try {
-      const url = editando ? `/api/clientes/${editando.id}` : "/api/clientes";
-      const method = editando ? "PUT" : "POST";
-      const res = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
-      });
-      const body = await res.json();
-      if (!res.ok) {
-        setErro(body.error || "Não foi possível salvar.");
-        return;
-      }
+      if (editando) await api.put(`/api/clientes/${editando.id}`, form);
+      else await api.post("/api/clientes", form);
       setModalAberto(false);
-      carregar();
+      recarregar();
+    } catch (e) {
+      setErro(errorMessage(e));
     } finally {
       setSalvando(false);
     }
   }
 
   async function alternarAtivo(c: Cliente) {
-    await fetch(`/api/clientes/${c.id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ativo: !c.ativo }),
-    });
-    carregar();
+    try {
+      await api.put(`/api/clientes/${c.id}`, { ativo: !c.ativo });
+      setErroLista(null);
+      recarregar();
+    } catch (e) {
+      setErroLista(errorMessage(e));
+    }
   }
 
   async function excluir(c: Cliente) {
     if (!confirm(`Excluir ${nomeExibicao(c)}? Isso também remove todas as reservas dele.`)) return;
-    await fetch(`/api/clientes/${c.id}`, { method: "DELETE" });
-    carregar();
+    try {
+      await api.delete(`/api/clientes/${c.id}`);
+      setErroLista(null);
+      recarregar();
+    } catch (e) {
+      setErroLista(errorMessage(e));
+    }
   }
 
   function abrirImportacao() {
@@ -168,29 +177,22 @@ export default function ClientesPage() {
     setImportando(true);
     setErroImportacao(null);
     try {
-      const res = await fetch("/api/clientes/importar", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          clientes: validas.map((l) => ({
-            nome: l.nome,
-            codigo_principal: l.codigo_principal,
-            codigo_secundario: l.codigo_secundario,
-            whatsapp: l.whatsapp,
-            setor: l.setor,
-            cidade: l.cidade,
-          })),
-        }),
+      const body = await api.post<{ importados: number; ignorados: number }>("/api/clientes/importar", {
+        clientes: validas.map((l) => ({
+          nome: l.nome,
+          codigo_principal: l.codigo_principal,
+          codigo_secundario: l.codigo_secundario,
+          whatsapp: l.whatsapp,
+          setor: l.setor,
+          cidade: l.cidade,
+        })),
       });
-      const body = await res.json();
-      if (!res.ok) {
-        setErroImportacao(body.error || "Não foi possível importar.");
-        return;
-      }
       setResultadoImportacao({ importados: body.importados, ignorados: body.ignorados });
       setLinhasImportacao([]);
       if (inputImportacaoRef.current) inputImportacaoRef.current.value = "";
-      carregar();
+      recarregar();
+    } catch (e) {
+      setErroImportacao(errorMessage(e));
     } finally {
       setImportando(false);
     }
@@ -238,6 +240,8 @@ export default function ClientesPage() {
           Mostrar inativos
         </label>
       </div>
+
+      {erroLista && <p className="text-sm text-danger mb-4">{erroLista}</p>}
 
       {loading ? (
         <p className="text-sm text-text-faint">Carregando…</p>

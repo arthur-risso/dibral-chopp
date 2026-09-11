@@ -1,42 +1,74 @@
-import { NextRequest, NextResponse } from "next/server";
-import { SESSION_COOKIE, getExpectedSessionToken } from "@/lib/auth";
+import { NextResponse, type NextRequest } from "next/server";
+import {
+  SESSION_COOKIE,
+  createSessionToken,
+  getSessionConfigError,
+  sessionCookieOptions,
+  shouldRenewSession,
+  verifySessionToken,
+} from "@/lib/server/session";
 
-const PUBLIC_PATHS = ["/login", "/api/login"];
+const PUBLIC_PATHS = ["/login", "/api/login", "/api/logout"];
+const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
-export async function proxy(req: NextRequest) {
+function isPublic(pathname: string) {
+  return PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"));
+}
+
+/**
+ * Proteção contra CSRF: requisições que alteram dados só são aceitas se
+ * vierem do próprio app. Navegadores modernos enviam Sec-Fetch-Site; nos
+ * mais antigos, a checagem cai para o cabeçalho Origin.
+ */
+function isCrossSite(req: NextRequest): boolean {
+  const site = req.headers.get("sec-fetch-site");
+  if (site) return site !== "same-origin";
+  const origin = req.headers.get("origin");
+  if (!origin) return false;
+  try {
+    return new URL(origin).host !== req.nextUrl.host;
+  } catch {
+    return true;
+  }
+}
+
+export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
+  const isApi = pathname === "/api" || pathname.startsWith("/api/");
 
-  if (PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"))) {
-    return NextResponse.next();
+  if (isApi && !SAFE_METHODS.has(req.method) && isCrossSite(req)) {
+    return NextResponse.json({ error: "Origem da requisição não permitida." }, { status: 403 });
   }
 
-  const expected = await getExpectedSessionToken();
+  if (isPublic(pathname)) return NextResponse.next();
 
-  // Se a senha não foi configurada no ambiente, bloqueia por segurança
-  // e orienta a configuração, em vez de liberar o acesso.
-  if (!expected) {
-    if (pathname.startsWith("/api")) {
-      return NextResponse.json(
-        { error: "APP_PASSWORD não configurada no servidor." },
-        { status: 500 }
-      );
-    }
+  // Se a senha/segredo não foram configurados no ambiente, bloqueia por
+  // segurança e orienta a configuração, em vez de liberar o acesso.
+  const configError = getSessionConfigError();
+  if (configError) {
+    if (isApi) return NextResponse.json({ error: configError }, { status: 500 });
     return NextResponse.redirect(new URL("/login?config=1", req.url));
   }
 
-  const cookie = req.cookies.get(SESSION_COOKIE)?.value;
-
-  if (cookie && cookie === expected) {
-    return NextResponse.next();
+  const session = verifySessionToken(req.cookies.get(SESSION_COOKIE)?.value);
+  if (session) {
+    const res = NextResponse.next();
+    if (shouldRenewSession(session)) {
+      res.cookies.set(SESSION_COOKIE, createSessionToken(), sessionCookieOptions());
+    }
+    return res;
   }
 
-  if (pathname.startsWith("/api")) {
+  if (isApi) {
     return NextResponse.json({ error: "Não autenticado." }, { status: 401 });
   }
 
   const loginUrl = new URL("/login", req.url);
   loginUrl.searchParams.set("from", pathname);
-  return NextResponse.redirect(loginUrl);
+  const res = NextResponse.redirect(loginUrl);
+  // Cookie expirado ou de uma versão antiga: remove para não ficar reenviando
+  if (req.cookies.has(SESSION_COOKIE)) res.cookies.delete(SESSION_COOKIE);
+  return res;
 }
 
 export const config = {

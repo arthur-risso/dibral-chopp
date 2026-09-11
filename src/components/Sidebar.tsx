@@ -1,26 +1,21 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
+import type { ReactElement } from "react";
+import { NAV_ITEMS, logout, type NavHref } from "@/lib/navigation";
 
-const NAV = [
-  { href: "/", label: "Painel", icon: PainelIcon },
-  { href: "/reservas", label: "Reservas", icon: ReservasIcon },
-  { href: "/clientes", label: "Clientes", icon: ClientesIcon },
-  { href: "/estoque", label: "Estoque", icon: EstoqueIcon },
-  { href: "/sugestao", label: "Sugestão de compra", icon: SugestaoIcon },
-  { href: "/fechamento", label: "Fechamento", icon: FechamentoIcon },
-];
+const ICONS: Record<NavHref, (props: { active?: boolean }) => ReactElement> = {
+  "/": PainelIcon,
+  "/reservas": ReservasIcon,
+  "/clientes": ClientesIcon,
+  "/estoque": EstoqueIcon,
+  "/sugestao": SugestaoIcon,
+  "/fechamento": FechamentoIcon,
+};
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const router = useRouter();
-
-  async function handleLogout() {
-    await fetch("/api/logout", { method: "POST" });
-    router.push("/login");
-    router.refresh();
-  }
 
   return (
     <aside className="hidden md:flex md:w-60 shrink-0 flex-col border-r border-border-subtle bg-bg-elevated">
@@ -47,9 +42,9 @@ export default function Sidebar() {
       </div>
 
       <nav className="flex-1 px-3 space-y-0.5">
-        {NAV.map((item) => {
+        {NAV_ITEMS.map((item) => {
           const active = pathname === item.href;
-          const Icon = item.icon;
+          const Icon = ICONS[item.href];
           return (
             <Link
               key={item.href}
@@ -75,7 +70,7 @@ export default function Sidebar() {
 
       <div className="p-3 border-t border-border-subtle">
         <button
-          onClick={handleLogout}
+          onClick={logout}
           className="w-full flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-text-faint hover:text-text hover:bg-surface/60 transition"
         >
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none">

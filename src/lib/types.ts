@@ -31,7 +31,8 @@ export type Cliente = {
   criado_em: string;
 };
 
-export type StatusReserva = "reservado" | "entregue" | "cancelado";
+export const STATUS_RESERVA = ["reservado", "entregue", "cancelado"] as const;
+export type StatusReserva = (typeof STATUS_RESERVA)[number];
 
 export type Reserva = {
   id: string;

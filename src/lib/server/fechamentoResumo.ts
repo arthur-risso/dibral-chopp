@@ -1,40 +1,42 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
+import "server-only";
 import { getMondayISO, addWeeksISO } from "@/lib/week";
+import { comboKey, dbError, fetchAll, getDb, one, type Relation } from "./db";
 import type { Fechamento, ResumoFechamento, AlertaFechamento, ItemResumoProduto } from "@/lib/types";
 
-export async function calcularResumoFechamento(
-  db: SupabaseClient,
-  fechamento: Fechamento
-): Promise<ResumoFechamento> {
+type VendaRow = {
+  cliente_id: string;
+  produto_id: string;
+  quantidade_barris: number;
+  clientes: Relation<{ nome: string | null; codigo_principal: string; cidade: string | null }>;
+  produtos: Relation<{ nome: string; marca: string }>;
+};
+
+type VendaSemanaRow = { cliente_id: string; produto_id: string; quantidade_barris: number };
+type ReservaRow = { cliente_id: string; produto_id: string; quantidade: number; status: string };
+
+export async function calcularResumoFechamento(fechamento: Fechamento): Promise<ResumoFechamento> {
+  const db = getDb();
   const semanaInicio = getMondayISO(new Date(fechamento.data + "T00:00:00"));
   const semanaFim = addWeeksISO(semanaInicio, 1); // exclusivo (próxima segunda)
 
   // Vendas reconhecidas neste fechamento (o dia importado)
-  const { data: vendasDoDiaRaw } = await db
-    .from("fechamento_vendas")
-    .select(
-      "cliente_id, produto_id, quantidade_barris, clientes(nome, codigo_principal, cidade), produtos(nome, marca)"
-    )
-    .eq("fechamento_id", fechamento.id);
-
-  type VendaRow = {
-    cliente_id: string;
-    produto_id: string;
-    quantidade_barris: number;
-    clientes:
-      | { nome: string | null; codigo_principal: string; cidade: string | null }
-      | { nome: string | null; codigo_principal: string; cidade: string | null }[]
-      | null;
-    produtos: { nome: string; marca: string } | { nome: string; marca: string }[] | null;
-  };
-  const vendasDoDia = (vendasDoDiaRaw as VendaRow[]) || [];
+  const vendasDoDia = await fetchAll<VendaRow>((from, to) =>
+    db
+      .from("fechamento_vendas")
+      .select(
+        "cliente_id, produto_id, quantidade_barris, clientes(nome, codigo_principal, cidade), produtos(nome, marca)"
+      )
+      .eq("fechamento_id", fechamento.id)
+      .order("id")
+      .range(from, to)
+  );
 
   // Total e ranking por produto (só o dia deste fechamento)
   const totalPorProduto = new Map<string, ItemResumoProduto>();
   let totalBarris = 0;
   for (const v of vendasDoDia) {
     totalBarris += v.quantidade_barris;
-    const produto = Array.isArray(v.produtos) ? v.produtos[0] : v.produtos;
+    const produto = one(v.produtos);
     const atual = totalPorProduto.get(v.produto_id);
     if (atual) {
       atual.barris += v.quantidade_barris;
@@ -53,7 +55,7 @@ export async function calcularResumoFechamento(
   // usado para a mensagem de WhatsApp dos pedidos do dia
   const codigosPorCidade = new Map<string, Set<string>>();
   for (const v of vendasDoDia) {
-    const cliente = Array.isArray(v.clientes) ? v.clientes[0] : v.clientes;
+    const cliente = one(v.clientes);
     if (!cliente) continue;
     const cidade = cliente.cidade?.trim() || "SEM CIDADE";
     if (!codigosPorCidade.has(cidade)) codigosPorCidade.set(cidade, new Set());
@@ -74,50 +76,58 @@ export async function calcularResumoFechamento(
 
   // Fechamentos da mesma semana, até e incluindo a data deste fechamento
   // (para o acumulado usado no alerta de "excedeu a reserva")
-  const { data: fechamentosSemana } = await db
+  const { data: fechamentosSemana, error: errFechamentos } = await db
     .from("fechamentos")
-    .select("id, data")
+    .select("id")
     .gte("data", semanaInicio)
     .lt("data", semanaFim)
     .lte("data", fechamento.data);
+  if (errFechamentos) throw dbError(errFechamentos);
 
-  const idsFechamentosSemana = (fechamentosSemana || []).map((f) => f.id);
+  const idsFechamentosSemana = (fechamentosSemana as { id: string }[]).map((f) => f.id);
 
   const acumuladoPorCombo = new Map<string, number>();
   if (idsFechamentosSemana.length > 0) {
-    const { data: vendasSemana } = await db
-      .from("fechamento_vendas")
-      .select("cliente_id, produto_id, quantidade_barris")
-      .in("fechamento_id", idsFechamentosSemana);
-
-    for (const v of vendasSemana || []) {
-      const key = `${v.cliente_id}__${v.produto_id}`;
+    const vendasSemana = await fetchAll<VendaSemanaRow>((from, to) =>
+      db
+        .from("fechamento_vendas")
+        .select("cliente_id, produto_id, quantidade_barris")
+        .in("fechamento_id", idsFechamentosSemana)
+        .order("id")
+        .range(from, to)
+    );
+    for (const v of vendasSemana) {
+      const key = comboKey(v.cliente_id, v.produto_id);
       acumuladoPorCombo.set(key, (acumuladoPorCombo.get(key) || 0) + v.quantidade_barris);
     }
   }
 
   // Reservas da semana, para comparar com o que foi vendido
-  const { data: reservasSemana } = await db
-    .from("reservas")
-    .select("cliente_id, produto_id, quantidade, status")
-    .eq("semana_referencia", semanaInicio);
+  const reservasSemana = await fetchAll<ReservaRow>((from, to) =>
+    db
+      .from("reservas")
+      .select("cliente_id, produto_id, quantidade, status")
+      .eq("semana_referencia", semanaInicio)
+      .order("id")
+      .range(from, to)
+  );
 
   const reservaPorCombo = new Map<string, number>();
-  for (const r of reservasSemana || []) {
+  for (const r of reservasSemana) {
     if (r.status === "cancelado") continue;
-    const key = `${r.cliente_id}__${r.produto_id}`;
+    const key = comboKey(r.cliente_id, r.produto_id);
     reservaPorCombo.set(key, (reservaPorCombo.get(key) || 0) + r.quantidade);
   }
 
   const alertas: AlertaFechamento[] = [];
   const combosVistos = new Set<string>();
   for (const v of vendasDoDia) {
-    const key = `${v.cliente_id}__${v.produto_id}`;
+    const key = comboKey(v.cliente_id, v.produto_id);
     if (combosVistos.has(key)) continue;
     combosVistos.add(key);
 
-    const cliente = Array.isArray(v.clientes) ? v.clientes[0] : v.clientes;
-    const produto = Array.isArray(v.produtos) ? v.produtos[0] : v.produtos;
+    const cliente = one(v.clientes);
+    const produto = one(v.produtos);
     const clienteNome = cliente?.nome?.trim() || cliente?.codigo_principal || "—";
     const produtoNome = produto?.nome || "—";
 

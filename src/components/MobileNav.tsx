@@ -1,30 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useState } from "react";
-
-const NAV = [
-  { href: "/", label: "Painel" },
-  { href: "/reservas", label: "Reservas" },
-  { href: "/clientes", label: "Clientes" },
-  { href: "/estoque", label: "Estoque" },
-  { href: "/sugestao", label: "Sugestão de compra" },
-  { href: "/fechamento", label: "Fechamento" },
-];
+import { NAV_ITEMS, logout } from "@/lib/navigation";
 
 export default function MobileNav() {
   const pathname = usePathname();
-  const router = useRouter();
   const [open, setOpen] = useState(false);
 
-  async function handleLogout() {
-    await fetch("/api/logout", { method: "POST" });
-    router.push("/login");
-    router.refresh();
-  }
-
-  const current = NAV.find((n) => n.href === pathname)?.label || "Painel";
+  const current = NAV_ITEMS.find((n) => n.href === pathname)?.label || "Painel";
 
   return (
     <div className="md:hidden sticky top-0 z-20 bg-bg-elevated border-b border-border-subtle">
@@ -51,7 +36,7 @@ export default function MobileNav() {
       </button>
       {open && (
         <nav className="border-t border-border-subtle px-2 py-2">
-          {NAV.map((item) => (
+          {NAV_ITEMS.map((item) => (
             <Link
               key={item.href}
               href={item.href}
@@ -64,7 +49,7 @@ export default function MobileNav() {
             </Link>
           ))}
           <button
-            onClick={handleLogout}
+            onClick={logout}
             className="w-full text-left rounded-lg px-3 py-2.5 text-sm text-text-faint"
           >
             Sair

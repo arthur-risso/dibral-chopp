@@ -1,15 +1,6 @@
-import { NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { json, route } from "@/lib/server/http";
+import { listarProdutos } from "@/lib/server/produtos";
 
-export async function GET() {
-  const db = supabaseAdmin();
-  const { data, error } = await db
-    .from("produtos")
-    .select("*")
-    .order("ordem", { ascending: true });
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-  return NextResponse.json({ produtos: data });
-}
+export const GET = route(async () => {
+  return json({ produtos: await listarProdutos() });
+});

@@ -1,25 +1,24 @@
-import { NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { calcularResumoFechamento } from "@/lib/fechamentoResumo";
+import { HttpError, json, parseWith, route } from "@/lib/server/http";
+import { dbError, getDb } from "@/lib/server/db";
+import { calcularResumoFechamento } from "@/lib/server/fechamentoResumo";
+import { idParamsSchema } from "@/lib/server/schemas";
 import type { Fechamento } from "@/lib/types";
 
-export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  const db = supabaseAdmin();
+export const GET = route<{ id: string }>(async (_req, params) => {
+  const { id } = parseWith(idParamsSchema, params);
 
-  const { data: fechamento, error } = await db.from("fechamentos").select("*").eq("id", id).single();
-  if (error || !fechamento) {
-    return NextResponse.json({ error: "Fechamento não encontrado." }, { status: 404 });
-  }
+  const { data: fechamento, error } = await getDb().from("fechamentos").select("*").eq("id", id).single();
+  if (error) throw dbError(error, { notFound: "Fechamento não encontrado." });
 
-  const resumo = await calcularResumoFechamento(db, fechamento as Fechamento);
-  return NextResponse.json({ resumo });
-}
+  const resumo = await calcularResumoFechamento(fechamento as Fechamento);
+  return json({ resumo });
+});
 
-export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  const db = supabaseAdmin();
-  const { error } = await db.from("fechamentos").delete().eq("id", id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ ok: true });
-}
+export const DELETE = route<{ id: string }>(async (_req, params) => {
+  const { id } = parseWith(idParamsSchema, params);
+
+  const { data, error } = await getDb().from("fechamentos").delete().eq("id", id).select("id");
+  if (error) throw dbError(error);
+  if (data.length === 0) throw new HttpError(404, "Fechamento não encontrado.");
+  return json({ ok: true });
+});

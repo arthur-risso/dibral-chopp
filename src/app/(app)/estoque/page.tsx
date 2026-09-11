@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import BarrilGauge from "@/components/BarrilGauge";
 import { brandColor } from "@/lib/brandColors";
 import type { ProdutoComEstoque } from "@/lib/types";
+import { api, errorMessage } from "@/lib/apiClient";
 
 export default function EstoquePage() {
   const [produtos, setProdutos] = useState<ProdutoComEstoque[]>([]);
@@ -18,18 +19,28 @@ export default function EstoquePage() {
   const [lancarQuantidade, setLancarQuantidade] = useState("");
   const [lancando, setLancando] = useState(false);
   const [erroLancamento, setErroLancamento] = useState<string | null>(null);
+  const [erro, setErro] = useState<string | null>(null);
 
-  async function carregar() {
-    setLoading(true);
-    const res = await fetch("/api/estoque");
-    const body = await res.json();
-    setProdutos(body.produtos || []);
-    setLoading(false);
-  }
+  const [versao, setVersao] = useState(0);
+  const recarregar = () => setVersao((v) => v + 1);
 
   useEffect(() => {
-    carregar();
-  }, []);
+    let ativo = true;
+    api
+      .get<{ produtos: ProdutoComEstoque[] }>("/api/estoque")
+      .then((body) => {
+        if (ativo) setProdutos(body.produtos);
+      })
+      .catch((e) => {
+        if (ativo) setErro(errorMessage(e));
+      })
+      .finally(() => {
+        if (ativo) setLoading(false);
+      });
+    return () => {
+      ativo = false;
+    };
+  }, [versao]);
 
   const maxEstoque = useMemo(
     () => Math.max(...produtos.map((p) => p.quantidade_atual), 10),
@@ -50,14 +61,12 @@ export default function EstoquePage() {
     setLancando(true);
     setErroLancamento(null);
     try {
-      await fetch("/api/estoque", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ produto_id: lancarProdutoId, quantidade_atual: valor }),
-      });
+      await api.put("/api/estoque", { produto_id: lancarProdutoId, quantidade_atual: valor });
       setLancarProdutoId("");
       setLancarQuantidade("");
-      carregar();
+      recarregar();
+    } catch (e) {
+      setErroLancamento(errorMessage(e));
     } finally {
       setLancando(false);
     }
@@ -74,13 +83,15 @@ export default function EstoquePage() {
       setEditandoId(null);
       return;
     }
-    await fetch("/api/estoque", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ produto_id: p.id, quantidade_atual: valor }),
-    });
-    setEditandoId(null);
-    carregar();
+    try {
+      await api.put("/api/estoque", { produto_id: p.id, quantidade_atual: valor });
+      setErro(null);
+      recarregar();
+    } catch (e) {
+      setErro(errorMessage(e));
+    } finally {
+      setEditandoId(null);
+    }
   }
 
   function iniciarEdicaoMinimo(p: ProdutoComEstoque) {
@@ -94,13 +105,15 @@ export default function EstoquePage() {
       setEditandoMinimoId(null);
       return;
     }
-    await fetch(`/api/produtos/${p.id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ estoque_minimo: valor }),
-    });
-    setEditandoMinimoId(null);
-    carregar();
+    try {
+      await api.put(`/api/produtos/${p.id}`, { estoque_minimo: valor });
+      setErro(null);
+      recarregar();
+    } catch (e) {
+      setErro(errorMessage(e));
+    } finally {
+      setEditandoMinimoId(null);
+    }
   }
 
   return (
@@ -115,6 +128,8 @@ export default function EstoquePage() {
             : "Todos os chopps dentro do nível mínimo"}
         </p>
       </header>
+
+      {erro && <p className="text-sm text-danger mb-4">{erro}</p>}
 
       {/* Lançamento manual de estoque */}
       <div className="rounded-xl border border-border bg-surface p-4 mb-6">
