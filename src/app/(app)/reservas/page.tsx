@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { getMondayISO, addWeeksISO, formatWeekLabel, isCurrentWeek } from "@/lib/week";
 import { brandColor } from "@/lib/brandColors";
 import { nomeExibicao } from "@/lib/clientes";
-import type { Cliente, Produto, ReservaComRelacoes, StatusReserva, CelulaReserva } from "@/lib/types";
+import type { Cliente, Produto, Reserva, ReservaComRelacoes, StatusReserva, CelulaReserva } from "@/lib/types";
+import { api, errorMessage } from "@/lib/apiClient";
 
 const PROXIMO_STATUS: Record<StatusReserva, StatusReserva> = {
   reservado: "entregue",
@@ -31,40 +32,60 @@ export default function ReservasPage() {
   const [loading, setLoading] = useState(true);
   const [busca, setBusca] = useState("");
   const [ordenarPor, setOrdenarPor] = useState<"codigo" | "nome">("codigo");
-
-  async function carregarBase() {
-    const [rc, rp] = await Promise.all([fetch("/api/clientes?ativos=1"), fetch("/api/produtos")]);
-    const [bc, bp] = await Promise.all([rc.json(), rp.json()]);
-    setClientes(bc.clientes || []);
-    setProdutos(bp.produtos || []);
-  }
-
-  async function carregarReservas() {
-    setLoading(true);
-    const res = await fetch(`/api/reservas?semana=${semana}`);
-    const body = await res.json();
-    const lista: ReservaComRelacoes[] = body.reservas || [];
-
-    const novasCelulas = new Map<string, CelulaReserva>();
-    const novosValores: Record<string, string> = {};
-    for (const r of lista) {
-      const key = cellKey(r.cliente_id, r.produto_id);
-      novasCelulas.set(key, { id: r.id, quantidade: r.quantidade, status: r.status as StatusReserva });
-      novosValores[key] = String(r.quantidade);
-    }
-    setCelulas(novasCelulas);
-    setValores(novosValores);
-    setLoading(false);
-  }
+  const [erro, setErro] = useState<string | null>(null);
 
   useEffect(() => {
-    carregarBase();
+    let ativo = true;
+    Promise.all([
+      api.get<{ clientes: Cliente[] }>("/api/clientes?ativos=1"),
+      api.get<{ produtos: Produto[] }>("/api/produtos"),
+    ])
+      .then(([bc, bp]) => {
+        if (!ativo) return;
+        setClientes(bc.clientes);
+        setProdutos(bp.produtos);
+      })
+      .catch((e) => {
+        if (ativo) setErro(errorMessage(e));
+      });
+    return () => {
+      ativo = false;
+    };
   }, []);
 
+  // Se a semana mudar antes da resposta chegar, a resposta antiga é
+  // descartada — senão a grade mostraria (e editaria) a semana errada.
   useEffect(() => {
-    carregarReservas();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    let ativo = true;
+    api
+      .get<{ reservas: ReservaComRelacoes[] }>(`/api/reservas?semana=${semana}`)
+      .then((body) => {
+        if (!ativo) return;
+        const novasCelulas = new Map<string, CelulaReserva>();
+        const novosValores: Record<string, string> = {};
+        for (const r of body.reservas) {
+          const key = cellKey(r.cliente_id, r.produto_id);
+          novasCelulas.set(key, { id: r.id, quantidade: r.quantidade, status: r.status });
+          novosValores[key] = String(r.quantidade);
+        }
+        setCelulas(novasCelulas);
+        setValores(novosValores);
+      })
+      .catch((e) => {
+        if (ativo) setErro(errorMessage(e));
+      })
+      .finally(() => {
+        if (ativo) setLoading(false);
+      });
+    return () => {
+      ativo = false;
+    };
   }, [semana]);
+
+  function mudarSemana(delta: number) {
+    setLoading(true);
+    setSemana(addWeeksISO(semana, delta));
+  }
 
   const clientesFiltrados = useMemo(() => {
     const termo = busca.toLowerCase();
@@ -106,46 +127,48 @@ export default function ReservasPage() {
     const key = cellKey(clienteId, produtoId);
     const atual = celulas.get(key);
     const texto = (valores[key] ?? "").trim();
+    const reverter = () => setValores((prev) => ({ ...prev, [key]: atual ? String(atual.quantidade) : "" }));
 
     if (texto === "") {
       if (atual) {
-        await fetch(`/api/reservas/${atual.id}`, { method: "DELETE" });
-        setCelulas((prev) => {
-          const next = new Map(prev);
-          next.delete(key);
-          return next;
-        });
+        try {
+          await api.delete(`/api/reservas/${atual.id}`);
+          setCelulas((prev) => {
+            const next = new Map(prev);
+            next.delete(key);
+            return next;
+          });
+        } catch (e) {
+          reverter();
+          setErro(errorMessage(e));
+        }
       }
       return;
     }
 
     const valor = Number(texto);
-    if (Number.isNaN(valor) || valor <= 0) {
-      setValores((prev) => ({ ...prev, [key]: atual ? String(atual.quantidade) : "" }));
+    if (!Number.isInteger(valor) || valor <= 0) {
+      reverter();
       return;
     }
     if (atual && atual.quantidade === valor) return;
 
-    const res = await fetch("/api/reservas", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
+    try {
+      const { reserva } = await api.put<{ reserva: Reserva }>("/api/reservas", {
         cliente_id: clienteId,
         produto_id: produtoId,
         quantidade: valor,
         semana_referencia: semana,
-      }),
-    });
-    const body = await res.json();
-    if (res.ok) {
+      });
       setCelulas((prev) => {
         const next = new Map(prev);
-        next.set(key, { id: body.reserva.id, quantidade: body.reserva.quantidade, status: body.reserva.status });
+        next.set(key, { id: reserva.id, quantidade: reserva.quantidade, status: reserva.status });
         return next;
       });
-      setValores((prev) => ({ ...prev, [key]: String(body.reserva.quantidade) }));
-    } else {
-      setValores((prev) => ({ ...prev, [key]: atual ? String(atual.quantidade) : "" }));
+      setValores((prev) => ({ ...prev, [key]: String(reserva.quantidade) }));
+    } catch (e) {
+      reverter();
+      setErro(errorMessage(e));
     }
   }
 
@@ -153,17 +176,17 @@ export default function ReservasPage() {
     const key = cellKey(clienteId, produtoId);
     const atual = celulas.get(key);
     if (!atual) return;
-    const novoStatus = PROXIMO_STATUS[atual.status];
-    await fetch(`/api/reservas/${atual.id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: novoStatus }),
-    });
-    setCelulas((prev) => {
-      const next = new Map(prev);
-      next.set(key, { ...atual, status: novoStatus });
-      return next;
-    });
+    const novoStatus: StatusReserva = PROXIMO_STATUS[atual.status];
+    try {
+      await api.put(`/api/reservas/${atual.id}`, { status: novoStatus });
+      setCelulas((prev) => {
+        const next = new Map(prev);
+        next.set(key, { ...atual, status: novoStatus });
+        return next;
+      });
+    } catch (e) {
+      setErro(errorMessage(e));
+    }
   }
 
   return (
@@ -177,7 +200,7 @@ export default function ReservasPage() {
         </div>
         <div className="flex items-center gap-1 rounded-lg border border-border bg-surface px-1.5 py-1.5">
           <button
-            onClick={() => setSemana(addWeeksISO(semana, -1))}
+            onClick={() => mudarSemana(-1)}
             className="p-1.5 rounded-md text-text-muted hover:text-text hover:bg-surface-hover"
             aria-label="Semana anterior"
           >
@@ -188,7 +211,7 @@ export default function ReservasPage() {
             {isCurrentWeek(semana) && <span className="ml-1.5 text-amber text-xs">· atual</span>}
           </span>
           <button
-            onClick={() => setSemana(addWeeksISO(semana, 1))}
+            onClick={() => mudarSemana(1)}
             className="p-1.5 rounded-md text-text-muted hover:text-text hover:bg-surface-hover"
             aria-label="Próxima semana"
           >
@@ -224,6 +247,8 @@ export default function ReservasPage() {
           </button>
         </div>
       </div>
+
+      {erro && <p className="text-sm text-danger mb-4">{erro}</p>}
 
       {loading ? (
         <p className="text-sm text-text-faint">Carregando…</p>

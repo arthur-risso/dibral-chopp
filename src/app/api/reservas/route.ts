@@ -1,40 +1,43 @@
-import { NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { json, parseBody, parseWith, route } from "@/lib/server/http";
+import { dbError, fetchAll, getDb, one, type Relation } from "@/lib/server/db";
+import { reservaSalvarSchema, reservasQuerySchema } from "@/lib/server/schemas";
 import { getMondayISO } from "@/lib/week";
+import type { StatusReserva } from "@/lib/types";
 
-export async function GET(req: Request) {
-  const db = supabaseAdmin();
-  const { searchParams } = new URL(req.url);
-  const semana = searchParams.get("semana") || getMondayISO();
+type ReservaRow = {
+  id: string;
+  cliente_id: string;
+  produto_id: string;
+  quantidade: number;
+  semana_referencia: string;
+  status: StatusReserva;
+  criado_em: string;
+  clientes: Relation<{ nome: string | null; codigo_principal: string }>;
+  produtos: Relation<{ nome: string; marca: string; ordem: number }>;
+};
 
-  const { data, error } = await db
-    .from("reservas")
-    .select(
-      "id, cliente_id, produto_id, quantidade, semana_referencia, status, criado_em, clientes(nome, codigo_principal), produtos(nome, marca, ordem)"
-    )
-    .eq("semana_referencia", semana)
-    .order("criado_em", { ascending: true });
+export const GET = route(async (req) => {
+  const { semana: semanaParam } = parseWith(reservasQuerySchema, {
+    semana: req.nextUrl.searchParams.get("semana") ?? undefined,
+  });
+  const semana = semanaParam ?? getMondayISO();
+  const db = getDb();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  const rows = await fetchAll<ReservaRow>((from, to) =>
+    db
+      .from("reservas")
+      .select(
+        "id, cliente_id, produto_id, quantidade, semana_referencia, status, criado_em, clientes(nome, codigo_principal), produtos(nome, marca, ordem)"
+      )
+      .eq("semana_referencia", semana)
+      .order("criado_em", { ascending: true })
+      .order("id")
+      .range(from, to)
+  );
 
-  type Row = {
-    id: string;
-    cliente_id: string;
-    produto_id: string;
-    quantidade: number;
-    semana_referencia: string;
-    status: string;
-    criado_em: string;
-    clientes:
-      | { nome: string | null; codigo_principal: string }
-      | { nome: string | null; codigo_principal: string }[]
-      | null;
-    produtos: { nome: string; marca: string; ordem: number } | { nome: string; marca: string; ordem: number }[] | null;
-  };
-
-  const reservas = ((data as Row[]) || []).map((r) => {
-    const cliente = Array.isArray(r.clientes) ? r.clientes[0] : r.clientes;
-    const produto = Array.isArray(r.produtos) ? r.produtos[0] : r.produtos;
+  const reservas = rows.map((r) => {
+    const cliente = one(r.clientes);
+    const produto = one(r.produtos);
     return {
       id: r.id,
       cliente_id: r.cliente_id,
@@ -50,74 +53,23 @@ export async function GET(req: Request) {
     };
   });
 
-  return NextResponse.json({ reservas });
-}
-
-export async function POST(req: Request) {
-  const db = supabaseAdmin();
-  const body = await req.json();
-
-  const { cliente_id, produto_id, quantidade, semana_referencia } = body;
-  if (!cliente_id || !produto_id || !quantidade || !semana_referencia) {
-    return NextResponse.json(
-      { error: "Cliente, produto, quantidade e semana são obrigatórios." },
-      { status: 400 }
-    );
-  }
-  if (Number(quantidade) <= 0) {
-    return NextResponse.json({ error: "Quantidade deve ser maior que zero." }, { status: 400 });
-  }
-
-  const { data, error } = await db
-    .from("reservas")
-    .insert({
-      cliente_id,
-      produto_id,
-      quantidade: Number(quantidade),
-      semana_referencia,
-      status: "reservado",
-    })
-    .select()
-    .single();
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ reserva: data }, { status: 201 });
-}
+  return json({ reservas });
+});
 
 /**
  * Usado pela grade de reservas: uma célula (cliente + produto + semana)
  * é uma reserva só. Se já existir, atualiza a quantidade sem mexer no
  * status; se não existir, cria com status "reservado".
  */
-export async function PUT(req: Request) {
-  const db = supabaseAdmin();
-  const body = await req.json();
+export const PUT = route(async (req) => {
+  const reserva = await parseBody(req, reservaSalvarSchema);
 
-  const { cliente_id, produto_id, quantidade, semana_referencia } = body;
-  if (!cliente_id || !produto_id || !semana_referencia || quantidade === undefined) {
-    return NextResponse.json(
-      { error: "Cliente, produto, quantidade e semana são obrigatórios." },
-      { status: 400 }
-    );
-  }
-  if (Number(quantidade) <= 0) {
-    return NextResponse.json({ error: "Quantidade deve ser maior que zero." }, { status: 400 });
-  }
-
-  const { data, error } = await db
+  const { data, error } = await getDb()
     .from("reservas")
-    .upsert(
-      {
-        cliente_id,
-        produto_id,
-        semana_referencia,
-        quantidade: Number(quantidade),
-      },
-      { onConflict: "cliente_id,produto_id,semana_referencia" }
-    )
+    .upsert(reserva, { onConflict: "cliente_id,produto_id,semana_referencia" })
     .select()
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ reserva: data });
-}
+  if (error) throw dbError(error, { foreignKey: "Cliente ou produto não encontrado." });
+  return json({ reserva: data });
+});

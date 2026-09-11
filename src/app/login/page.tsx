@@ -3,6 +3,16 @@
 import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
+/**
+ * Só aceita caminhos internos em "?from=" — senão um link como
+ * /login?from=https://site-falso.com levaria o usuário para fora do app
+ * logo depois de digitar a senha (open redirect).
+ */
+function destinoSeguro(from: string | null): string {
+  if (!from || !from.startsWith("/") || from.startsWith("//") || from.startsWith("/\\")) return "/";
+  return from;
+}
+
 function LoginForm() {
   const router = useRouter();
   const params = useSearchParams();
@@ -26,8 +36,7 @@ function LoginForm() {
         setError(body.error || "Não foi possível entrar.");
         return;
       }
-      const from = params.get("from") || "/";
-      router.push(from);
+      router.push(destinoSeguro(params.get("from")));
       router.refresh();
     } catch {
       setError("Falha de conexão. Tente novamente.");
@@ -59,8 +68,9 @@ function LoginForm() {
 
         {needsConfig && (
           <div className="mb-4 rounded-lg border border-warn/40 bg-[var(--warn-bg)] px-4 py-3 text-sm text-warn">
-            A variável <code className="font-[family-name:var(--font-mono)]">APP_PASSWORD</code> ainda
-            não foi configurada no servidor.
+            A configuração de acesso do servidor está incompleta — confira as variáveis{" "}
+            <code className="font-[family-name:var(--font-mono)]">APP_PASSWORD</code> e{" "}
+            <code className="font-[family-name:var(--font-mono)]">SESSION_SECRET</code>.
           </div>
         )}
 

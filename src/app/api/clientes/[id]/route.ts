@@ -1,50 +1,27 @@
-import { NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { HttpError, json, parseBody, parseWith, route } from "@/lib/server/http";
+import { dbError, getDb } from "@/lib/server/db";
+import { MSG_CODIGO_DUPLICADO, clienteAtualizarSchema, idParamsSchema } from "@/lib/server/schemas";
 
-export async function PUT(
-  req: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id } = await params;
-  const db = supabaseAdmin();
-  const body = await req.json();
+export const PUT = route<{ id: string }>(async (req, params) => {
+  const { id } = parseWith(idParamsSchema, params);
+  const update = await parseBody(req, clienteAtualizarSchema);
 
-  const update: Record<string, unknown> = {};
-  if (body.nome !== undefined) update.nome = body.nome?.trim() || null;
-  if (body.codigo_principal !== undefined) {
-    const codigo = String(body.codigo_principal).trim();
-    if (!codigo) {
-      return NextResponse.json({ error: "Código principal não pode ficar vazio." }, { status: 400 });
-    }
-    update.codigo_principal = codigo;
-  }
-  if (body.codigo_secundario !== undefined) update.codigo_secundario = body.codigo_secundario?.trim() || null;
-  if (body.whatsapp !== undefined) update.whatsapp = body.whatsapp?.trim() || null;
-  if (body.setor !== undefined) update.setor = body.setor?.trim() || null;
-  if (body.cidade !== undefined) update.cidade = body.cidade?.trim() || null;
-  if (body.ativo !== undefined) update.ativo = !!body.ativo;
-
-  const { data, error } = await db
+  const { data, error } = await getDb()
     .from("clientes")
     .update(update)
     .eq("id", id)
     .select()
     .single();
 
-  if (error) {
-    const msg = error.code === "23505" ? "Já existe um cliente com esse código principal." : error.message;
-    return NextResponse.json({ error: msg }, { status: 500 });
-  }
-  return NextResponse.json({ cliente: data });
-}
+  if (error) throw dbError(error, { unique: MSG_CODIGO_DUPLICADO, notFound: "Cliente não encontrado." });
+  return json({ cliente: data });
+});
 
-export async function DELETE(
-  _req: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id } = await params;
-  const db = supabaseAdmin();
-  const { error } = await db.from("clientes").delete().eq("id", id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ ok: true });
-}
+export const DELETE = route<{ id: string }>(async (_req, params) => {
+  const { id } = parseWith(idParamsSchema, params);
+
+  const { data, error } = await getDb().from("clientes").delete().eq("id", id).select("id");
+  if (error) throw dbError(error);
+  if (data.length === 0) throw new HttpError(404, "Cliente não encontrado.");
+  return json({ ok: true });
+});
