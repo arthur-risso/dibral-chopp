@@ -1,5 +1,7 @@
 "use client";
 
+import { IconBusca, IconEditar, IconPower, IconLixeira } from "@/components/icons";
+import FilePicker from "@/components/FilePicker";
 import { useEffect, useState, useMemo, useRef } from "react";
 import Modal from "@/components/Modal";
 import { nomeExibicao } from "@/lib/clientes";
@@ -199,116 +201,106 @@ export default function ClientesPage() {
   }
 
   return (
-    <div>
-      <header className="flex flex-wrap items-center justify-between gap-4 mb-6">
+    <div className="page-narrow">
+      <header className="page-head">
         <div>
-          <h1 className="font-[family-name:var(--font-display)] text-2xl text-text">Clientes</h1>
-          <p className="text-sm text-text-muted mt-0.5">
-            {clientes.filter((c) => c.ativo).length} clientes ativos
-          </p>
+          <h1 className="page-title">Clientes</h1>
+          <p className="page-sub">{clientes.filter((c) => c.ativo).length} clientes ativos</p>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={abrirImportacao}
-            className="rounded-lg border border-border bg-surface text-text font-medium px-4 py-2 text-sm hover:bg-surface-hover transition"
-          >
+          <button onClick={abrirImportacao} className="btn">
             Importar planilha
           </button>
-          <button
-            onClick={abrirNovo}
-            className="rounded-lg bg-amber text-[#1a1408] font-medium px-4 py-2 text-sm hover:bg-amber-strong transition"
-          >
-            + Novo cliente
+          <button onClick={abrirNovo} className="btn btn-primary">
+            Novo cliente
           </button>
         </div>
       </header>
 
-      <div className="flex flex-wrap items-center gap-3 mb-4">
-        <input
-          value={busca}
-          onChange={(e) => setBusca(e.target.value)}
-          placeholder="Buscar por nome ou código…"
-          className="flex-1 min-w-[200px] rounded-lg bg-surface border border-border px-3 py-2 text-sm text-text placeholder:text-text-faint focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber"
-        />
-        <label className="flex items-center gap-2 text-sm text-text-muted whitespace-nowrap">
+      <div className="flex flex-wrap items-center gap-4 mb-4">
+        <div className="relative flex-1 min-w-[240px] max-w-md">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-3 pointer-events-none">
+            <IconBusca />
+          </span>
+          <input
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            placeholder="Buscar por código, nome, setor ou cidade"
+            aria-label="Buscar cliente"
+            className="input"
+            style={{ paddingLeft: 38 }}
+          />
+        </div>
+        <label className="check">
           <input
             type="checkbox"
             checked={mostrarInativos}
             onChange={(e) => setMostrarInativos(e.target.checked)}
-            className="accent-[var(--amber)]"
           />
           Mostrar inativos
         </label>
       </div>
 
-      {erroLista && <p className="text-sm text-danger mb-4">{erroLista}</p>}
-
+      {erroLista && (
+        <p className="aviso aviso-danger mb-4" role="alert">
+          {erroLista}
+        </p>
+      )}
       {loading ? (
-        <p className="text-sm text-text-faint">Carregando…</p>
+        <p className="text-ink-2">Carregando…</p>
       ) : listaFiltrada.length === 0 ? (
         <EmptyState busca={busca} onNovo={abrirNovo} />
       ) : (
-        <div className="rounded-xl border border-border overflow-hidden">
-          <table className="w-full text-sm">
+        <div className="panel overflow-hidden">
+          <table className="tbl">
             <thead>
-              <tr className="bg-bg-elevated text-text-faint text-left">
-                <th className="px-4 py-2.5 font-medium">Cliente</th>
-                <th className="px-4 py-2.5 font-medium hidden lg:table-cell">Setor / Cidade</th>
-                <th className="px-4 py-2.5 font-medium hidden sm:table-cell">Código secundário</th>
-                <th className="px-4 py-2.5 font-medium hidden md:table-cell">WhatsApp</th>
-                <th className="px-4 py-2.5 font-medium">Status</th>
-                <th className="px-4 py-2.5 font-medium text-right">Ações</th>
+              <tr>
+                <th>Código</th>
+                <th>Cliente</th>
+                <th>Setor / Cidade</th>
+                <th>Código secundário</th>
+                <th>WhatsApp</th>
+                <th>Situação</th>
+                <th className="r">Ações</th>
               </tr>
             </thead>
             <tbody>
               {listaFiltrada.map((c) => (
-                <tr key={c.id} className="border-t border-border-subtle hover:bg-surface/40">
-                  <td className="px-4 py-2.5 text-text">
-                    <div>{nomeExibicao(c)}</div>
-                    <div className="text-xs text-text-faint font-[family-name:var(--font-mono)]">
+                <tr key={c.id} style={c.ativo ? undefined : { opacity: 0.72 }}>
+                  <td>
+                    <span className="font-display text-[19px] font-bold" style={{ color: "var(--green-2)" }}>
                       {c.codigo_principal}
-                    </div>
-                  </td>
-                  <td className="px-4 py-2.5 text-text-muted hidden lg:table-cell">
-                    {c.setor || c.cidade ? [c.setor, c.cidade].filter(Boolean).join(" · ") : "—"}
-                  </td>
-                  <td className="px-4 py-2.5 text-text-muted hidden sm:table-cell font-[family-name:var(--font-mono)]">
-                    {c.codigo_secundario || "—"}
-                  </td>
-                  <td className="px-4 py-2.5 text-text-muted hidden md:table-cell font-[family-name:var(--font-mono)]">
-                    {c.whatsapp || "—"}
-                  </td>
-                  <td className="px-4 py-2.5">
-                    <span
-                      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs ${
-                        c.ativo ? "bg-[var(--ok-bg)] text-ok" : "bg-surface text-text-faint"
-                      }`}
-                    >
-                      {c.ativo ? "Ativo" : "Inativo"}
                     </span>
                   </td>
-                  <td className="px-4 py-2.5">
-                    <div className="flex items-center justify-end gap-1.5">
-                      <button
-                        onClick={() => abrirEdicao(c)}
-                        className="text-text-faint hover:text-amber p-1.5 rounded-md"
-                        title="Editar"
-                      >
-                        <EditIcon />
+                  <td className={c.nome ? "font-semibold" : "sem-nome"}>{c.nome || "Sem nome"}</td>
+                  <td className="text-ink-2">
+                    {c.setor || c.cidade ? [c.setor, c.cidade].filter(Boolean).join(" · ") : "—"}
+                  </td>
+                  <td className="text-ink-2">{c.codigo_secundario || "—"}</td>
+                  <td className="text-ink-2">{c.whatsapp || "—"}</td>
+                  <td>
+                    <span className={`tag ${c.ativo ? "tag-ok" : ""}`}>{c.ativo ? "Ativo" : "Inativo"}</span>
+                  </td>
+                  <td>
+                    <div className="flex items-center justify-end gap-0.5">
+                      <button onClick={() => abrirEdicao(c)} className="icon-btn" title="Editar" aria-label="Editar">
+                        <IconEditar />
                       </button>
                       <button
                         onClick={() => alternarAtivo(c)}
-                        className="text-text-faint hover:text-text p-1.5 rounded-md"
+                        className="icon-btn"
                         title={c.ativo ? "Desativar" : "Ativar"}
+                        aria-label={c.ativo ? "Desativar" : "Ativar"}
                       >
-                        <PowerIcon />
+                        <IconPower />
                       </button>
                       <button
                         onClick={() => excluir(c)}
-                        className="text-text-faint hover:text-danger p-1.5 rounded-md"
+                        className="icon-btn danger"
                         title="Excluir"
+                        aria-label="Excluir"
                       >
-                        <TrashIcon />
+                        <IconLixeira />
                       </button>
                     </div>
                   </td>
@@ -321,32 +313,32 @@ export default function ClientesPage() {
 
       {modalAberto && (
         <Modal title={editando ? "Editar cliente" : "Novo cliente"} onClose={() => setModalAberto(false)}>
-          <div className="space-y-3">
-            <Field label="Nome (opcional)">
-              <input
-                autoFocus
-                value={form.nome}
-                onChange={(e) => setForm({ ...form, nome: e.target.value })}
-                className="input"
-              />
-            </Field>
+          <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <Field label="Código principal *">
                 <input
+                  autoFocus
                   value={form.codigo_principal}
                   onChange={(e) => setForm({ ...form, codigo_principal: e.target.value })}
-                  className="input font-[family-name:var(--font-mono)]"
+                  className="input"
                 />
               </Field>
               <Field label="Código secundário">
                 <input
                   value={form.codigo_secundario}
                   onChange={(e) => setForm({ ...form, codigo_secundario: e.target.value })}
-                  className="input font-[family-name:var(--font-mono)]"
+                  className="input"
                 />
               </Field>
             </div>
-            <Field label="Celular / WhatsApp (opcional)">
+            <Field label="Nome">
+              <input
+                value={form.nome}
+                onChange={(e) => setForm({ ...form, nome: e.target.value })}
+                className="input"
+              />
+            </Field>
+            <Field label="Celular / WhatsApp">
               <input
                 value={form.whatsapp}
                 onChange={(e) => setForm({ ...form, whatsapp: e.target.value })}
@@ -355,14 +347,14 @@ export default function ClientesPage() {
               />
             </Field>
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Setor (opcional)">
+              <Field label="Setor">
                 <input
                   value={form.setor}
                   onChange={(e) => setForm({ ...form, setor: e.target.value })}
                   className="input"
                 />
               </Field>
-              <Field label="Cidade (opcional)">
+              <Field label="Cidade">
                 <input
                   value={form.cidade}
                   onChange={(e) => setForm({ ...form, cidade: e.target.value })}
@@ -371,20 +363,17 @@ export default function ClientesPage() {
               </Field>
             </div>
 
-            {erro && <p className="text-sm text-danger">{erro}</p>}
+            {erro && (
+              <p className="aviso aviso-danger" role="alert">
+                {erro}
+              </p>
+            )}
 
-            <div className="flex justify-end gap-2 pt-2">
-              <button
-                onClick={() => setModalAberto(false)}
-                className="rounded-lg px-4 py-2 text-sm text-text-muted hover:text-text"
-              >
+            <div className="flex justify-end gap-2 pt-1">
+              <button onClick={() => setModalAberto(false)} className="btn btn-quiet">
                 Cancelar
               </button>
-              <button
-                onClick={salvar}
-                disabled={salvando}
-                className="rounded-lg bg-amber text-[#1a1408] font-medium px-4 py-2 text-sm hover:bg-amber-strong disabled:opacity-50"
-              >
+              <button onClick={salvar} disabled={salvando} className="btn btn-primary">
                 {salvando ? "Salvando…" : "Salvar"}
               </button>
             </div>
@@ -393,67 +382,66 @@ export default function ClientesPage() {
       )}
 
       {importAberto && (
-        <Modal title="Importar clientes em massa" onClose={() => setImportAberto(false)}>
+        <Modal title="Importar clientes em massa" onClose={() => setImportAberto(false)} wide>
           <div className="space-y-4">
-            <div className="rounded-lg bg-bg border border-border-subtle px-3 py-2.5 text-sm text-text-muted">
-              <a href="/modelo-clientes.xlsx" download className="text-amber hover:text-amber-strong">
+            <div className="aviso" style={{ background: "var(--porcelain)" }}>
+              <a href="/modelo-clientes.xlsx" download className="link-btn">
                 Baixar modelo (.xlsx)
-              </a>{" "}
-              — preencha no Excel, depois salve como <strong>CSV</strong> (Arquivo → Salvar como →
-              CSV) e envie o CSV aqui embaixo.
+              </a>
+              . Preencha no Excel, depois salve como <b>CSV</b> (Arquivo → Salvar como → CSV) e envie o
+              CSV aqui embaixo.
             </div>
 
-            <input
-              ref={inputImportacaoRef}
-              type="file"
-              accept=".csv"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
+            <FilePicker
+              inputRef={inputImportacaoRef}
+              label="Arquivo CSV de clientes"
+              onChange={(file) => {
                 if (file) selecionarArquivoImportacao(file);
               }}
-              className="w-full text-sm text-text-muted file:mr-3 file:rounded-lg file:border-0 file:bg-bg-elevated file:px-3 file:py-2 file:text-sm file:text-text hover:file:bg-surface-hover file:cursor-pointer"
             />
 
-            {erroImportacao && <p className="text-sm text-danger">{erroImportacao}</p>}
+            {erroImportacao && (
+              <p className="aviso aviso-danger" role="alert">
+                {erroImportacao}
+              </p>
+            )}
 
             {resultadoImportacao && (
-              <p className="text-sm text-ok">
+              <p className="aviso aviso-ok">
                 {resultadoImportacao.importados} cliente(s) importado(s)
                 {resultadoImportacao.ignorados > 0 &&
-                  ` — ${resultadoImportacao.ignorados} ignorado(s) por já existir código igual`}
+                  `, ${resultadoImportacao.ignorados} ignorado(s) por já existir código igual`}
                 .
               </p>
             )}
 
             {linhasImportacao.length > 0 && (
               <>
-                <p className="text-xs text-text-muted">
-                  {nomeArquivoImportacao} — {linhasImportacao.filter((l) => !l.erro).length} válida(s) de{" "}
+                <p className="text-ink-2 text-sm">
+                  {nomeArquivoImportacao}: {linhasImportacao.filter((l) => !l.erro).length} válida(s) de{" "}
                   {linhasImportacao.length} linha(s)
                 </p>
-                <div className="max-h-56 overflow-y-auto rounded-lg border border-border-subtle">
-                  <table className="w-full text-xs">
-                    <thead className="sticky top-0 bg-bg-elevated">
-                      <tr className="text-left text-text-faint">
-                        <th className="px-2.5 py-1.5 font-medium">Linha</th>
-                        <th className="px-2.5 py-1.5 font-medium">Cliente</th>
-                        <th className="px-2.5 py-1.5 font-medium">Código</th>
-                        <th className="px-2.5 py-1.5 font-medium">Status</th>
+                <div className="panel overflow-auto" style={{ maxHeight: 260 }}>
+                  <table className="tbl" style={{ fontSize: 14 }}>
+                    <thead>
+                      <tr>
+                        <th style={{ position: "sticky", top: 0 }}>Linha</th>
+                        <th style={{ position: "sticky", top: 0 }}>Cliente</th>
+                        <th style={{ position: "sticky", top: 0 }}>Código</th>
+                        <th style={{ position: "sticky", top: 0 }}>Situação</th>
                       </tr>
                     </thead>
                     <tbody>
                       {linhasImportacao.map((l) => (
-                        <tr key={l.linha} className="border-t border-border-subtle">
-                          <td className="px-2.5 py-1.5 text-text-faint">{l.linha}</td>
-                          <td className="px-2.5 py-1.5 text-text-muted">{l.nome || "—"}</td>
-                          <td className="px-2.5 py-1.5 font-[family-name:var(--font-mono)] text-text-muted">
-                            {l.codigo_principal || "—"}
-                          </td>
-                          <td className="px-2.5 py-1.5">
+                        <tr key={l.linha}>
+                          <td className="text-ink-2">{l.linha}</td>
+                          <td>{l.nome || "—"}</td>
+                          <td className="font-semibold">{l.codigo_principal || "—"}</td>
+                          <td>
                             {l.erro ? (
-                              <span className="text-danger">{l.erro}</span>
+                              <span className="tag tag-danger">{l.erro}</span>
                             ) : (
-                              <span className="text-ok">OK</span>
+                              <span className="tag tag-ok">OK</span>
                             )}
                           </td>
                         </tr>
@@ -463,16 +451,13 @@ export default function ClientesPage() {
                 </div>
 
                 <div className="flex justify-end gap-2">
-                  <button
-                    onClick={() => setImportAberto(false)}
-                    className="rounded-lg px-4 py-2 text-sm text-text-muted hover:text-text"
-                  >
+                  <button onClick={() => setImportAberto(false)} className="btn btn-quiet">
                     Cancelar
                   </button>
                   <button
                     onClick={confirmarImportacao}
                     disabled={importando || linhasImportacao.every((l) => l.erro)}
-                    className="rounded-lg bg-amber text-[#1a1408] font-medium px-4 py-2 text-sm hover:bg-amber-strong disabled:opacity-50"
+                    className="btn btn-primary"
                   >
                     {importando
                       ? "Importando…"
@@ -484,22 +469,6 @@ export default function ClientesPage() {
           </div>
         </Modal>
       )}
-
-      <style jsx global>{`
-        .input {
-          width: 100%;
-          border-radius: 0.5rem;
-          background: var(--bg);
-          border: 1px solid var(--border);
-          padding: 0.55rem 0.75rem;
-          font-size: 0.875rem;
-          color: var(--text);
-        }
-        .input:focus-visible {
-          outline: 2px solid var(--amber);
-          outline-offset: 1px;
-        }
-      `}</style>
     </div>
   );
 }
@@ -507,7 +476,7 @@ export default function ClientesPage() {
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block">
-      <span className="block text-xs text-text-muted mb-1">{label}</span>
+      <span className="label">{label}</span>
       {children}
     </label>
   );
@@ -515,54 +484,13 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 function EmptyState({ busca, onNovo }: { busca: string; onNovo: () => void }) {
   return (
-    <div className="rounded-xl border border-dashed border-border py-12 text-center">
-      <p className="text-text-muted text-sm">
-        {busca ? `Nenhum cliente encontrado para "${busca}".` : "Nenhum cliente cadastrado ainda."}
-      </p>
+    <div className="vazio">
+      <p>{busca ? `Nenhum cliente encontrado para "${busca}".` : "Nenhum cliente cadastrado ainda."}</p>
       {!busca && (
-        <button onClick={onNovo} className="mt-3 text-sm text-amber hover:text-amber-strong">
+        <button onClick={onNovo} className="link-btn mt-3">
           Cadastrar o primeiro cliente
         </button>
       )}
     </div>
-  );
-}
-
-function EditIcon() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
-      <path d="M12 20h9" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-      <path
-        d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-function PowerIcon() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
-      <path d="M12 3v8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-      <path
-        d="M18.4 6.6a8 8 0 1 1-12.8 0"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-function TrashIcon() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
-      <path
-        d="M4 7h16M9 7V4.5A1.5 1.5 0 0 1 10.5 3h3A1.5 1.5 0 0 1 15 4.5V7m2 0v13a1.5 1.5 0 0 1-1.5 1.5h-7A1.5 1.5 0 0 1 7 20V7h10Z"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinejoin="round"
-      />
-    </svg>
   );
 }

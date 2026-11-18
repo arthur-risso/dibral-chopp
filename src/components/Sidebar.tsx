@@ -2,161 +2,61 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { ReactElement } from "react";
-import { NAV_ITEMS, logout, type NavHref } from "@/lib/navigation";
+import Logo from "@/components/Logo";
+import { NAV_ITEMS as NAV, logout } from "@/lib/navigation";
+import {
+  IconPainel,
+  IconReservas,
+  IconClientes,
+  IconEstoque,
+  IconSugestao,
+  IconFechamento,
+  IconSair,
+} from "@/components/icons";
 
-const ICONS: Record<NavHref, (props: { active?: boolean }) => ReactElement> = {
-  "/": PainelIcon,
-  "/reservas": ReservasIcon,
-  "/clientes": ClientesIcon,
-  "/estoque": EstoqueIcon,
-  "/sugestao": SugestaoIcon,
-  "/fechamento": FechamentoIcon,
+const ICONES: Record<string, () => React.ReactElement> = {
+  "/": IconPainel,
+  "/reservas": IconReservas,
+  "/clientes": IconClientes,
+  "/estoque": IconEstoque,
+  "/sugestao": IconSugestao,
+  "/fechamento": IconFechamento,
 };
 
 export default function Sidebar() {
   const pathname = usePathname();
 
+  const handleLogout = logout;
+
   return (
-    <aside className="hidden md:flex md:w-60 shrink-0 flex-col border-r border-border-subtle bg-bg-elevated">
-      <div className="px-5 pt-6 pb-5">
-        <div className="flex items-center gap-2.5">
-          <span className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-border bg-surface">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-              <path
-                d="M6 3h9l-1 4h1a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h1L6 3Z"
-                stroke="var(--amber)"
-                strokeWidth="1.4"
-                strokeLinejoin="round"
-              />
-              <path d="M5 12h11" stroke="var(--amber)" strokeWidth="1.4" />
-            </svg>
-          </span>
-          <div>
-            <p className="font-[family-name:var(--font-display)] text-[15px] leading-tight text-text">
-              Dibral
-            </p>
-            <p className="text-[11px] text-text-faint leading-tight">Gestão de Chopp</p>
-          </div>
-        </div>
+    <aside className="rail hidden md:flex">
+      <div className="rail-logo">
+        <Logo />
       </div>
 
-      <nav className="flex-1 px-3 space-y-0.5">
-        {NAV_ITEMS.map((item) => {
-          const active = pathname === item.href;
-          const Icon = ICONS[item.href];
+      <nav className="rail-nav flex-1 px-3" aria-label="Principal">
+        {NAV.map((item) => {
+          const Icon = ICONES[item.href];
           return (
             <Link
               key={item.href}
               href={item.href}
-              className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition ${
-                active
-                  ? "bg-surface text-text"
-                  : "text-text-muted hover:bg-surface/60 hover:text-text"
-              }`}
+              aria-current={pathname === item.href ? "page" : undefined}
             >
-              <Icon active={active} />
+              <Icon />
               {item.label}
-              {active && (
-                <span
-                  className="ml-auto h-1.5 w-1.5 rounded-full"
-                  style={{ background: "var(--amber)" }}
-                />
-              )}
             </Link>
           );
         })}
       </nav>
 
-      <div className="p-3 border-t border-border-subtle">
-        <button
-          onClick={logout}
-          className="w-full flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-text-faint hover:text-text hover:bg-surface/60 transition"
-        >
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
-            <path
-              d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"
-              stroke="currentColor"
-              strokeWidth="1.6"
-              strokeLinecap="round"
-            />
-            <path
-              d="M16 17l5-5-5-5M21 12H9"
-              stroke="currentColor"
-              strokeWidth="1.6"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
+      <div className="rail-nav px-3 pb-3">
+        <button onClick={handleLogout}>
+          <IconSair />
           Sair
         </button>
       </div>
+      <div className="rail-tile" aria-hidden />
     </aside>
-  );
-}
-
-function iconProps(active?: boolean) {
-  return {
-    width: 16,
-    height: 16,
-    viewBox: "0 0 24 24",
-    fill: "none",
-    stroke: active ? "var(--amber-strong)" : "currentColor",
-    strokeWidth: 1.6,
-    strokeLinecap: "round" as const,
-    strokeLinejoin: "round" as const,
-  };
-}
-
-function PainelIcon({ active }: { active?: boolean }) {
-  return (
-    <svg {...iconProps(active)}>
-      <rect x="3" y="3" width="7" height="9" rx="1.5" />
-      <rect x="14" y="3" width="7" height="5" rx="1.5" />
-      <rect x="14" y="12" width="7" height="9" rx="1.5" />
-      <rect x="3" y="16" width="7" height="5" rx="1.5" />
-    </svg>
-  );
-}
-function ReservasIcon({ active }: { active?: boolean }) {
-  return (
-    <svg {...iconProps(active)}>
-      <rect x="3.5" y="4" width="17" height="17" rx="2" />
-      <path d="M8 2.5v3M16 2.5v3M3.5 9.5h17" />
-    </svg>
-  );
-}
-function ClientesIcon({ active }: { active?: boolean }) {
-  return (
-    <svg {...iconProps(active)}>
-      <circle cx="9" cy="8" r="3.2" />
-      <path d="M3.5 20c0-3.6 2.5-6 5.5-6s5.5 2.4 5.5 6" />
-      <path d="M16 4.5c1.7.4 3 2 3 3.9 0 1.9-1.3 3.5-3 3.9M20.5 20c0-3-1.9-5.3-4.3-5.9" />
-    </svg>
-  );
-}
-function EstoqueIcon({ active }: { active?: boolean }) {
-  return (
-    <svg {...iconProps(active)}>
-      <path d="M7 2.5h8l-1 4h1.5a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2h-9a2 2 0 0 1-2-2v-11a2 2 0 0 1 2-2H8l-1-4Z" />
-      <path d="M6.5 11h11" />
-    </svg>
-  );
-}
-function SugestaoIcon({ active }: { active?: boolean }) {
-  return (
-    <svg {...iconProps(active)}>
-      <path d="M3 17l5-5.5 4 3L21 6" />
-      <path d="M15 6h6v6" />
-    </svg>
-  );
-}
-function FechamentoIcon({ active }: { active?: boolean }) {
-  return (
-    <svg {...iconProps(active)}>
-      <path d="M14 3v5a1 1 0 0 0 1 1h5" />
-      <path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2Z" />
-      <path d="M9 13.5l2 2 4-4.5" />
-    </svg>
   );
 }

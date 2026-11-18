@@ -1,5 +1,6 @@
 "use client";
 
+import { IconEsq, IconDir, IconBusca, IconRelogio, IconCheck, IconX } from "@/components/icons";
 import { useEffect, useMemo, useState } from "react";
 import { getMondayISO, addWeeksISO, formatWeekLabel, isCurrentWeek } from "@/lib/week";
 import { brandColor } from "@/lib/brandColors";
@@ -13,10 +14,16 @@ const PROXIMO_STATUS: Record<StatusReserva, StatusReserva> = {
   cancelado: "reservado",
 };
 
-const STATUS_CLASSE: Record<StatusReserva, string> = {
-  reservado: "bg-[var(--warn-bg)] text-warn",
-  entregue: "bg-[var(--ok-bg)] text-ok",
-  cancelado: "bg-surface text-text-faint line-through",
+const STATUS_ROTULO: Record<StatusReserva, string> = {
+  reservado: "Reservado",
+  entregue: "Entregue",
+  cancelado: "Cancelado",
+};
+
+const STATUS_ICONE: Record<StatusReserva, React.ReactElement> = {
+  reservado: <IconRelogio />,
+  entregue: <IconCheck />,
+  cancelado: <IconX />,
 };
 
 function cellKey(clienteId: string, produtoId: string) {
@@ -191,124 +198,108 @@ export default function ReservasPage() {
 
   return (
     <div>
-      <header className="flex flex-wrap items-center justify-between gap-4 mb-6">
+      <header className="page-head">
         <div>
-          <h1 className="font-[family-name:var(--font-display)] text-2xl text-text">Reservas</h1>
-          <p className="text-sm text-text-muted mt-0.5">
-            Uma linha por cliente — preencha a quantidade de cada chopp direto na célula
+          <h1 className="page-title">Reservas</h1>
+          <p className="page-sub">
+            {formatWeekLabel(semana)}
+            {isCurrentWeek(semana) && " · semana atual"}
           </p>
         </div>
-        <div className="flex items-center gap-1 rounded-lg border border-border bg-surface px-1.5 py-1.5">
-          <button
-            onClick={() => mudarSemana(-1)}
-            className="p-1.5 rounded-md text-text-muted hover:text-text hover:bg-surface-hover"
-            aria-label="Semana anterior"
-          >
-            <ChevronLeft />
+        <div className="seg" role="group" aria-label="Semana">
+          <button onClick={() => mudarSemana(-1)} aria-label="Semana anterior">
+            <IconEsq />
           </button>
-          <span className="px-2 text-sm font-[family-name:var(--font-mono)] text-text min-w-[132px] text-center">
-            {formatWeekLabel(semana)}
-            {isCurrentWeek(semana) && <span className="ml-1.5 text-amber text-xs">· atual</span>}
-          </span>
           <button
-            onClick={() => mudarSemana(1)}
-            className="p-1.5 rounded-md text-text-muted hover:text-text hover:bg-surface-hover"
-            aria-label="Próxima semana"
+            onClick={() => {
+              if (!isCurrentWeek(semana)) {
+                setLoading(true);
+                setSemana(getMondayISO());
+              }
+            }}
+            aria-pressed={isCurrentWeek(semana)}
+            style={{ minWidth: 168 }}
           >
-            <ChevronRight />
+            {formatWeekLabel(semana)}
+          </button>
+          <button onClick={() => mudarSemana(1)} aria-label="Próxima semana">
+            <IconDir />
           </button>
         </div>
       </header>
 
       <div className="flex flex-wrap items-center gap-3 mb-4">
-        <input
-          value={busca}
-          onChange={(e) => setBusca(e.target.value)}
-          placeholder="Buscar por código, nome, setor ou cidade…"
-          className="w-full max-w-sm rounded-lg bg-surface border border-border px-3 py-2 text-sm text-text placeholder:text-text-faint focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber"
-        />
-        <div className="flex items-center gap-1 rounded-lg border border-border bg-surface p-1">
-          <span className="px-1.5 text-xs text-text-faint">Ordenar por</span>
-          <button
-            onClick={() => setOrdenarPor("codigo")}
-            className={`rounded-md px-2.5 py-1 text-xs ${
-              ordenarPor === "codigo" ? "bg-amber text-[#1a1408] font-medium" : "text-text-muted hover:text-text"
-            }`}
-          >
+        <div className="relative w-full max-w-md">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-3 pointer-events-none">
+            <IconBusca />
+          </span>
+          <input
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            placeholder="Buscar por código, nome, setor ou cidade"
+            aria-label="Buscar cliente"
+            className="input"
+            style={{ paddingLeft: 38 }}
+          />
+        </div>
+        <div className="seg" role="group" aria-label="Ordenar por">
+          <span className="seg-label">Ordenar por</span>
+          <button onClick={() => setOrdenarPor("codigo")} aria-pressed={ordenarPor === "codigo"}>
             Código
           </button>
-          <button
-            onClick={() => setOrdenarPor("nome")}
-            className={`rounded-md px-2.5 py-1 text-xs ${
-              ordenarPor === "nome" ? "bg-amber text-[#1a1408] font-medium" : "text-text-muted hover:text-text"
-            }`}
-          >
+          <button onClick={() => setOrdenarPor("nome")} aria-pressed={ordenarPor === "nome"}>
             Nome
           </button>
         </div>
+        {!loading && clientes.length > 0 && (
+          <span className="text-ink-2 text-sm ml-auto">
+            {clientesFiltrados.length} de {clientes.length} clientes
+          </span>
+        )}
       </div>
 
-      {erro && <p className="text-sm text-danger mb-4">{erro}</p>}
+      {erro && (
+        <p className="aviso aviso-danger mb-4" role="alert">
+          {erro}
+        </p>
+      )}
 
       {loading ? (
-        <p className="text-sm text-text-faint">Carregando…</p>
+        <p className="text-ink-2">Carregando…</p>
       ) : clientes.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-border py-12 text-center">
-          <p className="text-text-muted text-sm">
-            Nenhum cliente ativo cadastrado ainda — cadastre clientes para lançar reservas.
-          </p>
+        <div className="vazio">
+          Nenhum cliente ativo cadastrado ainda. Cadastre clientes para lançar reservas.
         </div>
       ) : (
-        <div className="rounded-xl border border-border overflow-auto max-h-[70vh]">
-          <table className="text-sm border-collapse">
+        <div className="grade-wrap">
+          <table className="grade">
             <thead>
               <tr>
-                <th className="sticky left-0 top-0 z-20 bg-bg-elevated text-text-faint text-left font-medium px-4 py-2.5 border-b border-r border-border-subtle w-56 min-w-[14rem]">
-                  Cliente
-                </th>
+                <th className="col-fixa sticky-cod">Código</th>
+                <th className="col-fixa sticky-nome">Cliente</th>
                 {produtos.map((p) => (
-                  <th
-                    key={p.id}
-                    className="sticky top-0 z-10 bg-bg-elevated text-text-faint font-medium px-2 py-2.5 border-b border-border-subtle w-28 min-w-[7rem] text-center"
-                  >
-                    <span className="inline-flex items-center gap-1.5 justify-center">
-                      <span
-                        className="h-2 w-2 rounded-full shrink-0"
-                        style={{ background: brandColor(p.nome, p.marca) }}
-                      />
-                      <span className="leading-tight">{p.nome}</span>
-                    </span>
+                  <th key={p.id} style={{ borderTopColor: brandColor(p.nome, p.marca) }}>
+                    {p.nome}
                   </th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {clientesFiltrados.map((c) => (
-                <tr key={c.id} className="hover:bg-surface/40">
-                  <td className="sticky left-0 z-10 bg-bg border-r border-b border-border-subtle px-4 py-2 w-56 min-w-[14rem]">
-                    <div className="flex items-baseline gap-1.5">
-                      <span className="text-text text-sm">{nomeExibicao(c)}</span>
-                      {c.nome && (
-                        <span className="text-[11px] text-text-faint font-[family-name:var(--font-mono)]">
-                          {c.codigo_principal}
-                        </span>
-                      )}
-                    </div>
+                <tr key={c.id}>
+                  <td className="cod sticky-cod">{c.codigo_principal}</td>
+                  <td className="nome sticky-nome">
+                    <span className={`n ${c.nome ? "" : "sem-nome"}`}>{c.nome || "Sem nome"}</span>
                     {(c.setor || c.cidade) && (
-                      <div className="text-[11px] text-text-faint">
-                        {[c.setor, c.cidade].filter(Boolean).join(" · ")}
-                      </div>
+                      <span className="loc">{[c.setor, c.cidade].filter(Boolean).join(" · ")}</span>
                     )}
                   </td>
                   {produtos.map((p) => {
                     const key = cellKey(c.id, p.id);
                     const celula = celulas.get(key);
                     return (
-                      <td
-                        key={p.id}
-                        className="border-b border-border-subtle px-1.5 py-1.5 text-center align-middle"
-                      >
-                        <div className="flex flex-col items-center gap-1">
+                      <td key={p.id} className={`cel ${celula ? `st-${celula.status}` : ""}`}>
+                        <div className="cel-in">
                           <input
                             type="number"
                             min={0}
@@ -316,15 +307,16 @@ export default function ReservasPage() {
                             onChange={(e) => onChangeValor(c.id, p.id, e.target.value)}
                             onBlur={() => commitCelula(c.id, p.id)}
                             onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
-                            className="w-16 rounded-md bg-bg-elevated border border-border px-1.5 py-1 text-center text-sm font-[family-name:var(--font-mono)] text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber"
+                            aria-label={`${nomeExibicao(c)}, ${p.nome}`}
                           />
                           {celula && (
                             <button
+                              className="cel-status"
                               onClick={() => alternarStatus(c.id, p.id)}
-                              className={`rounded-full px-1.5 py-0.5 text-[9px] leading-tight ${STATUS_CLASSE[celula.status]}`}
-                              title="Clique para mudar o status"
+                              title={`${STATUS_ROTULO[celula.status]}. Clique para mudar.`}
+                              aria-label={`Status: ${STATUS_ROTULO[celula.status]}. Clique para mudar.`}
                             >
-                              {celula.status}
+                              {STATUS_ICONE[celula.status]}
                             </button>
                           )}
                         </div>
@@ -333,19 +325,20 @@ export default function ReservasPage() {
                   })}
                 </tr>
               ))}
+              {clientesFiltrados.length === 0 && (
+                <tr>
+                  <td colSpan={produtos.length + 2} className="text-center text-ink-2" style={{ padding: 28 }}>
+                    Nenhum cliente encontrado para &ldquo;{busca}&rdquo;.
+                  </td>
+                </tr>
+              )}
             </tbody>
             <tfoot>
               <tr>
-                <td className="sticky left-0 bottom-0 z-10 bg-bg-elevated border-r border-t border-border-subtle px-4 py-2.5 text-xs text-text-muted font-medium">
-                  Total na semana
-                </td>
+                <td className="sticky-cod">Total</td>
+                <td className="sticky-nome">na semana</td>
                 {produtos.map((p, i) => (
-                  <td
-                    key={p.id}
-                    className="bg-bg-elevated border-t border-border-subtle px-2 py-2.5 text-center text-sm font-[family-name:var(--font-mono)] text-amber-strong"
-                  >
-                    {totalPorProduto[i]}
-                  </td>
+                  <td key={p.id}>{totalPorProduto[i]}</td>
                 ))}
               </tr>
             </tfoot>
@@ -353,25 +346,21 @@ export default function ReservasPage() {
         </div>
       )}
 
-      <p className="text-xs text-text-faint mt-3">
-        Deixe a célula vazia para remover a reserva. Clique na etiqueta abaixo do número para
-        alternar entre reservado → entregue → cancelado.
-      </p>
+      <div className="legenda">
+        <span>Deixe a célula vazia para remover a reserva.</span>
+        <span>
+          Botão no canto da célula muda o status:
+        </span>
+        <span style={{ color: "var(--blue)" }}>
+          <IconRelogio /> <b className="text-ink">reservado</b>
+        </span>
+        <span style={{ color: "var(--ok)" }}>
+          <IconCheck /> <b className="text-ink">entregue</b>
+        </span>
+        <span style={{ color: "var(--ink-3)" }}>
+          <IconX /> <b className="text-ink">cancelado</b>
+        </span>
+      </div>
     </div>
-  );
-}
-
-function ChevronLeft() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
-      <path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-function ChevronRight() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
-      <path d="M9 6l6 6-6 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
   );
 }

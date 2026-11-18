@@ -1,5 +1,7 @@
 "use client";
 
+import { IconCheck } from "@/components/icons";
+import FilePicker from "@/components/FilePicker";
 import { useEffect, useRef, useState } from "react";
 import { formatDateBR } from "@/lib/week";
 import { brandColor } from "@/lib/brandColors";
@@ -179,142 +181,147 @@ export default function FechamentoPage() {
   }
 
   return (
-    <div>
-      <header className="mb-6">
-        <h1 className="font-[family-name:var(--font-display)] text-2xl text-text">Fechamento</h1>
-        <p className="text-sm text-text-muted mt-0.5">
-          Importe o CSV de pedidos do dia exportado do Promax para conferir o que foi vendido
-        </p>
+    <div className="page-narrow">
+      <header className="page-head">
+        <div>
+          <h1 className="page-title">Fechamento</h1>
+          <p className="page-sub">Importe o CSV de pedidos do dia exportado do Promax para conferir o que foi vendido</p>
+        </div>
       </header>
 
-      {/* Upload */}
-      <div className="rounded-xl border border-border bg-surface p-4 mb-6">
-        <p className="text-xs text-text-muted mb-3">Novo fechamento</p>
-        <div className="flex flex-wrap items-center gap-2.5">
-          <input
-            ref={inputRef}
-            type="file"
-            accept=".csv"
-            onChange={(e) => setArquivo(e.target.files?.[0] || null)}
-            className="flex-1 min-w-[220px] text-sm text-text-muted file:mr-3 file:rounded-lg file:border-0 file:bg-bg-elevated file:px-3 file:py-2 file:text-sm file:text-text hover:file:bg-surface-hover file:cursor-pointer"
+      <section className="panel panel-pad mb-7">
+        <h2 className="section-title" style={{ marginBottom: 12 }}>
+          Novo fechamento
+        </h2>
+        <div className="flex flex-wrap items-center gap-3">
+          <FilePicker
+            inputRef={inputRef}
+            label="Arquivo CSV do Promax"
+            onChange={setArquivo}
+            className="flex-1 min-w-[260px]"
           />
-          <button
-            onClick={processar}
-            disabled={enviando || !arquivo}
-            className="rounded-lg bg-amber text-[#1a1408] font-medium px-4 py-2 text-sm hover:bg-amber-strong disabled:opacity-50"
-          >
+          <button onClick={processar} disabled={enviando || !arquivo} className="btn btn-primary">
             {enviando ? "Processando…" : "Processar fechamento"}
           </button>
         </div>
-        {erro && <p className="text-sm text-danger mt-2">{erro}</p>}
-      </div>
+        {erro && (
+          <p className="aviso aviso-danger mt-3" role="alert">
+            {erro}
+          </p>
+        )}
+      </section>
 
-      {/* Resumo */}
       {resumo && (
-        <div className="rounded-xl border border-border bg-surface p-5 mb-8">
-          <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
-            <div>
-              <p className="text-sm text-text-muted">Fechamento de</p>
-              <p className="font-[family-name:var(--font-display)] text-xl text-text">
-                {formatDateBR(resumo.fechamento.data)}
-              </p>
-            </div>
+        <section className="mb-9">
+          <div className="flex flex-wrap items-end justify-between gap-3 mb-3">
+            <h2 className="font-display text-[30px] font-bold leading-none">
+              Fechamento de {formatDateBR(resumo.fechamento.data)}
+            </h2>
             <div className="text-right">
-              <p className="text-sm text-text-muted">Total vendido</p>
-              <p className="font-[family-name:var(--font-mono)] text-2xl text-amber">
-                {resumo.total_barris} <span className="text-sm text-text-faint">barris</span>
+              <p className="text-sm font-semibold text-ink-2">Total vendido</p>
+              <p className="font-display text-[38px] font-bold leading-none">
+                {resumo.total_barris} <span className="text-lg font-semibold text-ink-2">barris</span>
               </p>
             </div>
           </div>
-
-          <p className="text-xs text-text-faint mb-4">
+          <p className="text-ink-2 text-sm mb-4">
             {resumo.fechamento.linhas_reconhecidas} de {resumo.fechamento.total_linhas} linhas do arquivo
             reconhecidas como chopp de clientes cadastrados
             {resumo.linhas_ignoradas > 0 && ` (${resumo.linhas_ignoradas} ignoradas)`}.
           </p>
 
-          {resumo.por_cidade.length > 0 && (
-            <div className="mb-5">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-xs text-text-muted">Mensagem para o WhatsApp</p>
-                <button
-                  onClick={copiarMensagem}
-                  className="text-xs text-amber hover:text-amber-strong inline-flex items-center gap-1"
-                >
-                  {copiado ? (
-                    <>
-                      <CheckIcon /> Copiado
-                    </>
-                  ) : (
-                    "Copiar mensagem"
-                  )}
-                </button>
+          <div className="grid xl:grid-cols-[1fr_1fr] gap-6 items-start">
+            <div className="space-y-6">
+              <div>
+                <h3 className="section-title">
+                  Alertas{" "}
+                  {resumo.alertas.length === 0 && <span className="tag tag-ok align-middle ml-1">nenhum</span>}
+                </h3>
+                {resumo.alertas.length > 0 && (
+                  <ul className="space-y-2">
+                    {resumo.alertas.map((a, i) => (
+                      <li
+                        key={i}
+                        className={`aviso ${a.tipo === "sem_reserva" ? "aviso-danger" : "aviso-warn"}`}
+                      >
+                        {a.tipo === "sem_reserva" ? (
+                          <>
+                            <strong>{a.cliente_nome}</strong> comprou {a.produto_nome} sem ter reservado
+                            nada dessa semana.{" "}
+                            {resumo.fechamento.sincronizado_em
+                              ? "Já foi lançado como entregue."
+                              : "Ao concluir o fechamento, será lançado como entregue."}
+                          </>
+                        ) : (
+                          <>
+                            <strong>{a.cliente_nome}</strong> já pegou {a.quantidade_vendida_semana}{" "}
+                            {a.produto_nome} nessa semana, mas reservou só {a.quantidade_reservada}. Confira a
+                            reserva dele.
+                          </>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
-              <pre className="rounded-lg bg-bg-elevated border border-border-subtle px-3 py-2.5 text-xs text-text-muted whitespace-pre-wrap font-[family-name:var(--font-mono)] leading-relaxed">
-                {montarMensagemPedidosChopp(resumo.por_cidade)}
-              </pre>
-            </div>
-          )}
 
-          {resumo.por_produto.length > 0 && (
-            <div className="mb-5">
-              <p className="text-xs text-text-muted mb-2">Por chopp</p>
-              <ul className="space-y-1.5">
-                {resumo.por_produto.map((p, i) => (
-                  <li key={p.produto_id} className="flex items-center justify-between text-sm">
-                    <span className="inline-flex items-center gap-1.5 text-text-muted">
-                      <span
-                        className="h-2 w-2 rounded-full shrink-0"
-                        style={{ background: brandColor(p.produto_nome, p.marca) }}
-                      />
-                      {p.produto_nome}
-                      {i === 0 && (
-                        <span className="ml-1 text-[10px] text-amber-strong">mais vendido</span>
-                      )}
-                    </span>
-                    <span className="font-[family-name:var(--font-mono)] text-text">{p.barris}</span>
-                  </li>
-                ))}
-              </ul>
+              {resumo.por_produto.length > 0 && (
+                <div>
+                  <h3 className="section-title">Por chopp</h3>
+                  <div className="panel overflow-hidden">
+                    <table className="tbl joint">
+                      <tbody>
+                        {resumo.por_produto.map((p, i) => (
+                          <tr key={p.produto_id}>
+                            <td>
+                              <span className="inline-flex items-center gap-2 font-semibold">
+                                <span className="brand-dot" style={{ background: brandColor(p.produto_nome, p.marca) }} />
+                                {p.produto_nome}
+                              </span>
+                              {i === 0 && <span className="tag tag-blue ml-2">mais vendido</span>}
+                            </td>
+                            <td className="ncel" style={{ width: 90 }}>
+                              <span className="font-display text-xl font-bold">{p.barris}</span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </div>
-          )}
 
-          <div>
-            <p className="text-xs text-text-muted mb-2">
-              Alertas {resumo.alertas.length === 0 && <span className="text-ok">— nenhum</span>}
-            </p>
-            {resumo.alertas.length > 0 && (
-              <ul className="space-y-2">
-                {resumo.alertas.map((a, i) => (
-                  <li
-                    key={i}
-                    className={`rounded-lg px-3 py-2 text-sm ${
-                      a.tipo === "sem_reserva"
-                        ? "bg-[var(--danger-bg)] text-danger"
-                        : "bg-[var(--warn-bg)] text-warn"
-                    }`}
-                  >
-                    {a.tipo === "sem_reserva" ? (
+            {resumo.por_cidade.length > 0 && (
+              <div>
+                <div className="flex items-center justify-between mb-2.5">
+                  <h3 className="section-title" style={{ marginBottom: 0 }}>
+                    Mensagem para o WhatsApp
+                  </h3>
+                  <button onClick={copiarMensagem} className="btn btn-sm">
+                    {copiado ? (
                       <>
-                        <strong>{a.cliente_nome}</strong> comprou {a.produto_nome} sem ter reservado
-                        nada dessa semana.
+                        <IconCheck /> Copiado
                       </>
                     ) : (
-                      <>
-                        <strong>{a.cliente_nome}</strong> já pegou {a.quantidade_vendida_semana}{" "}
-                        {a.produto_nome} nessa semana, mas reservou só {a.quantidade_reservada}.
-                      </>
+                      "Copiar mensagem"
                     )}
-                  </li>
-                ))}
-              </ul>
+                  </button>
+                </div>
+                <pre
+                  className="panel panel-pad whitespace-pre-wrap"
+                  style={{ fontFamily: "var(--font-body)", fontSize: 15, lineHeight: 1.55 }}
+                >
+                  {montarMensagemPedidosChopp(resumo.por_cidade)}
+                </pre>
+              </div>
             )}
           </div>
 
-          <div className="mt-5 pt-4 border-t border-border-subtle">
+          <div className="panel panel-pad mt-6" style={{ background: "var(--green-tint)", borderColor: "var(--green)" }}>
             {resumo.fechamento.sincronizado_em ? (
-              <p className="text-sm text-ok flex items-center gap-1.5">
-                <CheckIcon />
+              <p className="font-semibold flex items-center gap-2" style={{ color: "var(--ok)" }}>
+                <IconCheck />
                 Sincronizado com as reservas em{" "}
                 {new Date(resumo.fechamento.sincronizado_em).toLocaleString("pt-BR", {
                   day: "2-digit",
@@ -324,83 +331,67 @@ export default function FechamentoPage() {
                 })}
               </p>
             ) : (
-              <div>
-                <button
-                  onClick={sincronizar}
-                  disabled={sincronizando}
-                  className="rounded-lg bg-amber text-[#1a1408] font-medium px-4 py-2 text-sm hover:bg-amber-strong disabled:opacity-50"
-                >
+              <div className="flex flex-wrap items-center gap-4">
+                <button onClick={sincronizar} disabled={sincronizando} className="btn btn-primary">
                   {sincronizando ? "Sincronizando…" : "Concluir fechamento e sincronizar"}
                 </button>
-                <p className="text-xs text-text-faint mt-2">
-                  Desconta o que foi entregue hoje das reservas da semana (marcando como entregue
-                  quando zerar) e cria uma reserva já entregue para quem comprou sem ter reservado.
+                <p className="text-ink-2 text-sm flex-1 min-w-[260px]">
+                  Desconta o que foi entregue hoje das reservas da semana (marcando como entregue quando
+                  zerar) e cria uma reserva já entregue para quem comprou sem ter reservado.
                 </p>
               </div>
             )}
-            {mensagemSync && <p className="text-xs text-text-muted mt-2">{mensagemSync}</p>}
+            {mensagemSync && <p className="text-sm mt-3 font-semibold">{mensagemSync}</p>}
           </div>
-        </div>
+        </section>
       )}
 
-      {/* Histórico */}
-      <div>
-        <p className="text-xs text-text-muted mb-3">Histórico de fechamentos</p>
-        {erroHistorico && <p className="text-sm text-danger mb-3">{erroHistorico}</p>}
+      <section>
+        <h2 className="section-title">Histórico de fechamentos</h2>
+        {erroHistorico && (
+          <p className="aviso aviso-danger mb-3" role="alert">
+            {erroHistorico}
+          </p>
+        )}
         {carregandoHistorico ? (
-          <p className="text-sm text-text-faint">Carregando…</p>
+          <p className="text-ink-2">Carregando…</p>
         ) : historico.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-border py-10 text-center">
-            <p className="text-text-muted text-sm">Nenhum fechamento importado ainda.</p>
-          </div>
+          <div className="vazio">Nenhum fechamento importado ainda.</div>
         ) : (
-          <div className="rounded-xl border border-border overflow-hidden">
-            <table className="w-full text-sm">
+          <div className="panel overflow-hidden">
+            <table className="tbl">
               <thead>
-                <tr className="bg-bg-elevated text-text-faint text-left">
-                  <th className="px-4 py-2.5 font-medium">Data</th>
-                  <th className="px-4 py-2.5 font-medium hidden sm:table-cell">Arquivo</th>
-                  <th className="px-4 py-2.5 font-medium text-right">Barris</th>
-                  <th className="px-4 py-2.5 font-medium hidden sm:table-cell">Sync</th>
-                  <th className="px-4 py-2.5 font-medium text-right">Ações</th>
+                <tr>
+                  <th>Data</th>
+                  <th>Arquivo</th>
+                  <th className="r">Barris</th>
+                  <th>Sincronização</th>
+                  <th className="r">Ações</th>
                 </tr>
               </thead>
               <tbody>
                 {historico.map((f) => (
-                  <tr
-                    key={f.id}
-                    className={`border-t border-border-subtle hover:bg-surface/40 ${
-                      selecionadoId === f.id ? "bg-surface/50" : ""
-                    }`}
-                  >
-                    <td className="px-4 py-2.5 text-text">{formatDateBR(f.data)}</td>
-                    <td className="px-4 py-2.5 text-text-muted hidden sm:table-cell truncate max-w-[220px]">
+                  <tr key={f.id} className={selecionadoId === f.id ? "is-selected" : ""}>
+                    <td className="font-semibold">{formatDateBR(f.data)}</td>
+                    <td className="text-ink-2 truncate" style={{ maxWidth: 240 }}>
                       {f.arquivo_nome || "—"}
                     </td>
-                    <td className="px-4 py-2.5 text-right font-[family-name:var(--font-mono)] text-text">
-                      {f.total_barris}
+                    <td className="r">
+                      <span className="font-display text-xl font-bold">{f.total_barris}</span>
                     </td>
-                    <td className="px-4 py-2.5 hidden sm:table-cell">
+                    <td>
                       {f.sincronizado_em ? (
-                        <span className="inline-flex items-center rounded-full bg-[var(--ok-bg)] text-ok px-2 py-0.5 text-[11px]">
-                          sincronizado
-                        </span>
+                        <span className="tag tag-ok">sincronizado</span>
                       ) : (
-                        <span className="text-[11px] text-text-faint">pendente</span>
+                        <span className="tag">pendente</span>
                       )}
                     </td>
-                    <td className="px-4 py-2.5">
-                      <div className="flex items-center justify-end gap-3">
-                        <button
-                          onClick={() => verFechamento(f.id)}
-                          className="text-xs text-amber hover:text-amber-strong"
-                        >
+                    <td>
+                      <div className="flex items-center justify-end gap-4">
+                        <button onClick={() => verFechamento(f.id)} className="link-btn">
                           Ver
                         </button>
-                        <button
-                          onClick={() => excluirFechamento(f)}
-                          className="text-xs text-text-faint hover:text-danger"
-                        >
+                        <button onClick={() => excluirFechamento(f)} className="link-btn danger" style={{ color: "var(--ink-3)" }}>
                           Excluir
                         </button>
                       </div>
@@ -411,15 +402,7 @@ export default function FechamentoPage() {
             </table>
           </div>
         )}
-      </div>
+      </section>
     </div>
-  );
-}
-
-function CheckIcon() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
-      <path d="M5 13l4 4L19 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
   );
 }
