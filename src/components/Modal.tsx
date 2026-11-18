@@ -1,15 +1,18 @@
 "use client";
 
 import { useEffect } from "react";
+import { IconFechar } from "@/components/icons";
 
 export default function Modal({
   title,
   onClose,
   children,
+  wide = false,
 }: {
   title: string;
   onClose: () => void;
   children: React.ReactNode;
+  wide?: boolean;
 }) {
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -20,27 +23,22 @@ export default function Modal({
   }, [onClose]);
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-start md:items-center justify-center bg-black/60 px-4 py-8 overflow-y-auto"
-      onClick={onClose}
-    >
+    <div className="modal-backdrop" onClick={onClose}>
       <div
-        className="w-full max-w-md rounded-xl border border-border bg-bg-elevated p-5 shadow-xl"
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        className="modal"
+        style={wide ? { maxWidth: 680 } : undefined}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="font-[family-name:var(--font-display)] text-lg text-text">{title}</h2>
-          <button
-            onClick={onClose}
-            aria-label="Fechar"
-            className="text-text-faint hover:text-text rounded-full p-1"
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-              <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-            </svg>
+        <div className="modal-head">
+          <h2>{title}</h2>
+          <button onClick={onClose} aria-label="Fechar" className="icon-btn">
+            <IconFechar />
           </button>
         </div>
-        {children}
+        <div className="modal-body">{children}</div>
       </div>
     </div>
   );

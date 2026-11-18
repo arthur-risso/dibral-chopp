@@ -1,8 +1,8 @@
 "use client";
 
+import { IconSeta } from "@/components/icons";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import BarrilGauge from "@/components/BarrilGauge";
 import { brandColor } from "@/lib/brandColors";
 import { formatWeekLabel, getMondayISO, isCurrentWeek } from "@/lib/week";
 import type { ProdutoComEstoque, ReservaComRelacoes, SugestaoProduto, Cliente } from "@/lib/types";
@@ -48,128 +48,147 @@ export default function PainelPage() {
   const baixoCount = produtos.filter((p) => p.quantidade_atual < p.estoque_minimo).length;
   const totalPuxar = sugestoes.reduce((acc, s) => acc + s.sugestao_puxar, 0);
 
+  const aPuxar = sugestoes.filter((s) => s.sugestao_puxar > 0).sort((a, b) => b.sugestao_puxar - a.sugestao_puxar);
+
   return (
-    <div>
-      <header className="mb-6">
-        <h1 className="font-[family-name:var(--font-display)] text-2xl text-text">Painel</h1>
-        <p className="text-sm text-text-muted mt-0.5">
-          Semana de {formatWeekLabel(semanaAtual)}
-          {isCurrentWeek(semanaAtual) && " · atual"}
-        </p>
+    <div className="page-narrow">
+      <header className="page-head">
+        <div>
+          <h1 className="page-title">Painel</h1>
+          <p className="page-sub">
+            Semana de {formatWeekLabel(semanaAtual)}
+            {isCurrentWeek(semanaAtual) && " · atual"}
+          </p>
+        </div>
+        <Link href="/reservas" className="btn btn-primary">
+          Lançar reservas da semana
+          <IconSeta />
+        </Link>
       </header>
 
+      {erro && (
+        <p className="aviso aviso-danger mb-4" role="alert">
+          {erro}
+        </p>
+      )}
       {loading ? (
-        <p className="text-sm text-text-faint">Carregando…</p>
-      ) : erro ? (
-        <p className="text-sm text-danger">{erro}</p>
+        <p className="text-ink-2">Carregando…</p>
       ) : (
         <>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            <StatCard label="Clientes ativos" value={clientes.length} />
-            <StatCard label="Barris reservados nesta semana" value={totalReservadoSemana} />
-            <StatCard
-              label="Chopps com estoque baixo"
-              value={baixoCount}
-              tone={baixoCount > 0 ? "danger" : "ok"}
-            />
-            <StatCard label="Sugestão de puxada" value={totalPuxar} tone="amber" />
-          </div>
+          <p className="text-[17px] mb-6">
+            <b>{clientes.length}</b> clientes ativos · <b>{totalReservadoSemana}</b> barris reservados nesta semana ·{" "}
+            {baixoCount > 0 ? (
+              <>
+                <span className="tag tag-warn" style={{ height: 26, fontSize: 14 }}>
+                  {baixoCount} {baixoCount > 1 ? "chopps abaixo" : "chopp abaixo"} do mínimo
+                </span>{" "}
+                <Link href="/estoque" className="link-btn">
+                  Ajustar estoque
+                </Link>
+              </>
+            ) : (
+              <span className="tag tag-ok" style={{ height: 26, fontSize: 14 }}>
+                estoque dentro do mínimo
+              </span>
+            )}
+          </p>
 
-          <div className="grid lg:grid-cols-2 gap-6">
-            <section className="rounded-xl border border-border bg-surface p-5">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-sm font-medium text-text">Estoque atual</h2>
-                <Link href="/estoque" className="text-xs text-amber hover:text-amber-strong">
-                  ver tudo →
+          <div className="grid xl:grid-cols-[1.5fr_1fr] gap-6 items-start">
+            <section>
+              <div className="flex items-baseline justify-between">
+                <h2 className="section-title">Estoque atual</h2>
+                <Link href="/estoque" className="link-btn">
+                  Abrir estoque
                 </Link>
               </div>
-              <div className="flex flex-wrap gap-4">
-                {produtos.map((p) => (
-                  <BarrilGauge
-                    key={p.id}
-                    quantidade={p.quantidade_atual}
-                    max={maxEstoque}
-                    baixo={p.quantidade_atual < p.estoque_minimo}
-                    color={brandColor(p.nome, p.marca)}
-                    height={72}
-                  />
-                ))}
+              <div className="panel overflow-hidden">
+                <table className="tbl joint">
+                  <thead>
+                    <tr>
+                      <th>Chopp</th>
+                      <th className="r">Barris</th>
+                      <th style={{ width: "38%" }}>Nível (marca preta = mínimo)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {produtos.map((p) => {
+                      const baixo = p.quantidade_atual < p.estoque_minimo;
+                      const pct = Math.min((p.quantidade_atual / maxEstoque) * 100, 100);
+                      const pctMin = Math.min((p.estoque_minimo / maxEstoque) * 100, 100);
+                      return (
+                        <tr key={p.id}>
+                          <td>
+                            <span className="inline-flex items-center gap-2 font-semibold">
+                              <span className="brand-dot" style={{ background: brandColor(p.nome, p.marca) }} />
+                              {p.nome}
+                            </span>
+                          </td>
+                          <td className={`ncel ${baixo ? "alerta" : ""}`}>
+                            <span className="font-display text-xl font-bold" style={baixo ? { color: "var(--orange-ink)" } : undefined}>
+                              {p.quantidade_atual}
+                            </span>
+                          </td>
+                          <td>
+                            <div className={`barra ${baixo ? "baixo" : ""}`}>
+                              <i style={{ width: `${pct}%` }} />
+                              {p.estoque_minimo > 0 && <b style={{ left: `${pctMin}%` }} />}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
             </section>
 
-            <section className="rounded-xl border border-border bg-surface p-5">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-sm font-medium text-text">Puxar esta semana</h2>
-                <Link href="/sugestao" className="text-xs text-amber hover:text-amber-strong">
-                  ver detalhes →
+            <section>
+              <div className="flex items-baseline justify-between">
+                <h2 className="section-title">Puxar esta semana</h2>
+                <Link href="/sugestao" className="link-btn">
+                  Ver o cálculo
                 </Link>
               </div>
-              {sugestoes.filter((s) => s.sugestao_puxar > 0).length === 0 ? (
-                <p className="text-sm text-text-faint">
-                  Nenhuma sugestão de compra no momento — estoque cobre a demanda estimada.
-                </p>
-              ) : (
-                <ul className="space-y-2.5">
-                  {sugestoes
-                    .filter((s) => s.sugestao_puxar > 0)
-                    .sort((a, b) => b.sugestao_puxar - a.sugestao_puxar)
-                    .map((s) => (
-                      <li key={s.produto_id} className="flex items-center justify-between text-sm">
-                        <span className="inline-flex items-center gap-1.5 text-text-muted">
-                          <span
-                            className="h-2 w-2 rounded-full shrink-0"
-                            style={{ background: brandColor(s.produto_nome, s.marca) }}
-                          />
-                          {s.produto_nome}
-                        </span>
-                        <span className="font-[family-name:var(--font-mono)] text-amber-strong">
-                          {s.sugestao_puxar}
-                        </span>
-                      </li>
-                    ))}
-                </ul>
-              )}
+              <div className="panel">
+                {aPuxar.length === 0 ? (
+                  <p className="panel-pad text-ink-2">
+                    Nenhuma sugestão de compra no momento. O estoque cobre a demanda estimada.
+                  </p>
+                ) : (
+                  <>
+                    <table className="tbl joint">
+                      <tbody>
+                        {aPuxar.map((s) => (
+                          <tr key={s.produto_id}>
+                            <td>
+                              <span className="inline-flex items-center gap-2 font-semibold">
+                                <span className="brand-dot" style={{ background: brandColor(s.produto_nome, s.marca) }} />
+                                {s.produto_nome}
+                              </span>
+                            </td>
+                            <td className="ncel" style={{ width: 90 }}>
+                              <span className="font-display text-xl font-bold">{s.sugestao_puxar}</span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    <div
+                      className="flex items-center justify-between px-3.5 py-3 text-white"
+                      style={{ background: "var(--green)" }}
+                    >
+                      <span className="font-semibold">Total a puxar</span>
+                      <span className="font-display text-2xl font-bold">
+                        {totalPuxar} <span className="text-base font-semibold">barris</span>
+                      </span>
+                    </div>
+                  </>
+                )}
+              </div>
             </section>
-          </div>
-
-          <div className="mt-6">
-            <Link
-              href="/reservas"
-              className="inline-flex items-center gap-2 rounded-lg bg-amber text-[#1a1408] font-medium px-4 py-2.5 text-sm hover:bg-amber-strong transition"
-            >
-              Lançar reservas da semana
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                <path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </Link>
           </div>
         </>
       )}
-    </div>
-  );
-}
-
-function StatCard({
-  label,
-  value,
-  tone = "default",
-}: {
-  label: string;
-  value: number;
-  tone?: "default" | "danger" | "ok" | "amber";
-}) {
-  const toneColor =
-    tone === "danger"
-      ? "text-danger"
-      : tone === "ok"
-      ? "text-ok"
-      : tone === "amber"
-      ? "text-amber-strong"
-      : "text-text";
-  return (
-    <div className="rounded-xl border border-border bg-surface p-4">
-      <p className="text-xs text-text-muted mb-1.5">{label}</p>
-      <p className={`font-[family-name:var(--font-mono)] text-2xl ${toneColor}`}>{value}</p>
     </div>
   );
 }
