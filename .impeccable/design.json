@@ -1,0 +1,563 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-18T18:41:47+00:00",
+  "title": "Design System: Dibral Chopp",
+  "extensions": {
+    "colorMeta": {
+      "porcelain": {
+        "role": "neutral",
+        "displayName": "Porcelana",
+        "canonical": "#f3f5f1",
+        "tonalRamp": [
+          "#0a0c09",
+          "#242623",
+          "#41433f",
+          "#60625e",
+          "#81837f",
+          "#a4a6a2",
+          "#c8cac6",
+          "#edefeb"
+        ]
+      },
+      "tile": {
+        "role": "neutral",
+        "displayName": "Azulejo branco",
+        "canonical": "#ffffff",
+        "tonalRamp": [
+          "#0b0b0b",
+          "#252525",
+          "#424242",
+          "#616161",
+          "#828282",
+          "#a5a5a5",
+          "#c9c9c9",
+          "#eeeeee"
+        ]
+      },
+      "grout": {
+        "role": "neutral",
+        "displayName": "Rejunte",
+        "canonical": "#d3dad3",
+        "tonalRamp": [
+          "#0a0c0a",
+          "#232623",
+          "#3f443f",
+          "#5d635d",
+          "#7e847e",
+          "#a1a7a1",
+          "#c6cac6",
+          "#edefed"
+        ]
+      },
+      "grout-strong": {
+        "role": "neutral",
+        "displayName": "Rejunte forte",
+        "canonical": "#aebaaf",
+        "tonalRamp": [
+          "#090c09",
+          "#212722",
+          "#3c453d",
+          "#5a655b",
+          "#7b867c",
+          "#9ea89f",
+          "#c4cbc5",
+          "#ebf0ec"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Tinta",
+        "canonical": "#14241e",
+        "tonalRamp": [
+          "#080c0a",
+          "#1e2824",
+          "#374640",
+          "#54665f",
+          "#758780",
+          "#99aaa3",
+          "#c0ccc7",
+          "#e9f0ed"
+        ]
+      },
+      "ink-2": {
+        "role": "neutral",
+        "displayName": "Tinta 2",
+        "canonical": "#3d5047",
+        "tonalRamp": [
+          "#070d0a",
+          "#1d2823",
+          "#36463f",
+          "#53675d",
+          "#73887e",
+          "#98aaa1",
+          "#bfcdc6",
+          "#e9f1ed"
+        ]
+      },
+      "ink-3": {
+        "role": "neutral",
+        "displayName": "Tinta 3",
+        "canonical": "#5a6b62",
+        "tonalRamp": [
+          "#080c0a",
+          "#1f2723",
+          "#38463f",
+          "#55665d",
+          "#76877e",
+          "#9aaaa1",
+          "#c1ccc6",
+          "#e9f0ed"
+        ]
+      },
+      "bottle-green": {
+        "role": "primary",
+        "displayName": "Verde-garrafa",
+        "canonical": "#12503e",
+        "tonalRamp": [
+          "#020e09",
+          "#0b2c21",
+          "#1b4c3d",
+          "#346e5b",
+          "#56907b",
+          "#80b29f",
+          "#afd3c4",
+          "#dff4ec"
+        ]
+      },
+      "bottle-green-deep": {
+        "role": "primary",
+        "displayName": "Verde-garrafa profundo",
+        "canonical": "#0c3a2d",
+        "tonalRamp": [
+          "#040e0a",
+          "#132a23",
+          "#264a3e",
+          "#406b5c",
+          "#618d7d",
+          "#88afa0",
+          "#b5d1c6",
+          "#e2f3ec"
+        ]
+      },
+      "green-tint": {
+        "role": "primary",
+        "displayName": "Verde-névoa",
+        "canonical": "#e0ece5",
+        "tonalRamp": [
+          "#090c0a",
+          "#212723",
+          "#3c4440",
+          "#5a645e",
+          "#7b857f",
+          "#9ea8a2",
+          "#c4cbc7",
+          "#ebf0ed"
+        ]
+      },
+      "orange": {
+        "role": "secondary",
+        "displayName": "Laranja-de-seleção",
+        "canonical": "#d9532c",
+        "tonalRamp": [
+          "#1f0000",
+          "#4d0200",
+          "#7f0900",
+          "#ae2900",
+          "#d65129",
+          "#f57e5d",
+          "#ffb097",
+          "#ffe0d1"
+        ]
+      },
+      "orange-ink": {
+        "role": "secondary",
+        "displayName": "Laranja-tinta",
+        "canonical": "#a63a19",
+        "tonalRamp": [
+          "#1d0200",
+          "#470d00",
+          "#771d00",
+          "#a43817",
+          "#cb5c3c",
+          "#ea8669",
+          "#feb49f",
+          "#ffe3d6"
+        ]
+      },
+      "orange-tint": {
+        "role": "secondary",
+        "displayName": "Laranja-névoa",
+        "canonical": "#fbebe4",
+        "tonalRamp": [
+          "#0e0a09",
+          "#2a2320",
+          "#4a3f3a",
+          "#6b5e58",
+          "#8d7f79",
+          "#afa29c",
+          "#d0c7c3",
+          "#f3edea"
+        ]
+      },
+      "tile-blue": {
+        "role": "tertiary",
+        "displayName": "Azul-azulejo",
+        "canonical": "#2b5fa8",
+        "tonalRamp": [
+          "#010a1e",
+          "#07244b",
+          "#14407c",
+          "#2c60a9",
+          "#4d83cf",
+          "#77a7eb",
+          "#a9cbfd",
+          "#dbf0ff"
+        ]
+      },
+      "blue-tint": {
+        "role": "tertiary",
+        "displayName": "Azul-névoa",
+        "canonical": "#e5edf8",
+        "tonalRamp": [
+          "#090b0e",
+          "#22252a",
+          "#3d424a",
+          "#5b626b",
+          "#7c838d",
+          "#9fa6af",
+          "#c5cad0",
+          "#eceff3"
+        ]
+      },
+      "ok": {
+        "role": "tertiary",
+        "displayName": "Verde-ok",
+        "canonical": "#1b6b45",
+        "tonalRamp": [
+          "#000f06",
+          "#022e19",
+          "#074f30",
+          "#24724b",
+          "#49946b",
+          "#76b691",
+          "#a9d6ba",
+          "#dcf6e6"
+        ]
+      },
+      "ok-tint": {
+        "role": "tertiary",
+        "displayName": "Ok-névoa",
+        "canonical": "#dcefe3",
+        "tonalRamp": [
+          "#080c0a",
+          "#1f2722",
+          "#38463d",
+          "#55665c",
+          "#76877d",
+          "#9aaaa0",
+          "#c1ccc5",
+          "#eaf0ec"
+        ]
+      },
+      "danger": {
+        "role": "tertiary",
+        "displayName": "Vermelho-perigo",
+        "canonical": "#b3261e",
+        "tonalRamp": [
+          "#200000",
+          "#4e0000",
+          "#810002",
+          "#b0221b",
+          "#d84c3f",
+          "#f77b6b",
+          "#ffaea0",
+          "#ffdfd6"
+        ]
+      },
+      "danger-tint": {
+        "role": "tertiary",
+        "displayName": "Perigo-névoa",
+        "canonical": "#fbe5e2",
+        "tonalRamp": [
+          "#0f0a09",
+          "#2c2221",
+          "#4d3e3c",
+          "#6f5c5a",
+          "#917d7a",
+          "#b2a09e",
+          "#d3c6c4",
+          "#f4eceb"
+        ]
+      },
+      "brand-antarctica": {
+        "role": "tertiary",
+        "displayName": "Marca Antarctica",
+        "canonical": "#2f6fb5",
+        "tonalRamp": [
+          "#000b1e",
+          "#02254a",
+          "#07427b",
+          "#2162a7",
+          "#4585cd",
+          "#71a9e9",
+          "#a5cdfc",
+          "#d9f1ff"
+        ]
+      },
+      "brand-brahma": {
+        "role": "tertiary",
+        "displayName": "Marca Brahma",
+        "canonical": "#c23b2e",
+        "tonalRamp": [
+          "#1f0000",
+          "#4d0100",
+          "#7f0603",
+          "#ae261c",
+          "#d64e40",
+          "#f57c6c",
+          "#ffafa1",
+          "#ffe0d6"
+        ]
+      },
+      "brand-black": {
+        "role": "tertiary",
+        "displayName": "Marca Black",
+        "canonical": "#3b3050",
+        "tonalRamp": [
+          "#0c0913",
+          "#272134",
+          "#463c59",
+          "#665a7d",
+          "#877ba0",
+          "#a99fc0",
+          "#ccc5dd",
+          "#f0ecfb"
+        ]
+      },
+      "brand-stella": {
+        "role": "tertiary",
+        "displayName": "Marca Stella",
+        "canonical": "#b8860b",
+        "tonalRamp": [
+          "#150800",
+          "#381f00",
+          "#603900",
+          "#865600",
+          "#aa7800",
+          "#c99d48",
+          "#e4c48c",
+          "#ffeccb"
+        ]
+      },
+      "brand-colorado": {
+        "role": "tertiary",
+        "displayName": "Marca Colorado",
+        "canonical": "#9a5314",
+        "tonalRamp": [
+          "#180600",
+          "#3e1900",
+          "#693000",
+          "#924c07",
+          "#b76e34",
+          "#d69464",
+          "#efbe9c",
+          "#ffe8d4"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Título da página (32px) e números grandes de resumo (30-38px)."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Título de seção e de modal."
+      },
+      "numeral": {
+        "displayName": "Numeral",
+        "purpose": "Quantidades e códigos, sempre tabulares."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Texto corrente, células, campos, botões."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Rótulos de campo e cabeçalhos de tabela."
+      },
+      "tag": {
+        "displayName": "Tag",
+        "purpose": "Etiquetas de estado."
+      }
+    },
+    "shadows": [
+      {
+        "name": "none",
+        "value": "none",
+        "purpose": "Painéis, botões, campos e células são planos; separação por rejunte de 1px."
+      },
+      {
+        "name": "modal-carried",
+        "value": "0 18px 40px -12px rgba(12,58,45,0.45)",
+        "purpose": "Única sombra do build, no modal. Exceção carregada, não regra para novas superfícies."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease",
+        "value": "cubic-bezier(0.22, 1, 0.36, 1)",
+        "purpose": "Transições de cor de 140ms em botões e navegação; barra de estoque 420ms; entrada do modal 220ms."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "0.001ms",
+        "purpose": "prefers-reduced-motion zera animações e transições."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "rail",
+        "value": "768px"
+      },
+      {
+        "name": "two-column-panels",
+        "value": "1280px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Ação principal da tela, uma por cabeçalho ou formulário.",
+      "html": "<button class=\"ds-btn-primary\">Salvar</button>",
+      "css": ".ds-btn-primary{height:40px;padding:0 16px;border-radius:2px;border:1px solid var(--green,#12503e);background:var(--green,#12503e);color:#fff;font:600 15px Barlow,system-ui,sans-serif;transition:background-color 140ms}.ds-btn-primary:hover{background:var(--green-2,#0c3a2d);border-color:var(--green-2,#0c3a2d)}.ds-btn-primary:focus-visible{outline:2px solid #d9532c;outline-offset:2px}"
+    },
+    {
+      "name": "Default Button",
+      "kind": "button",
+      "refersTo": "button-default",
+      "description": "Ação secundária sobre azulejo branco.",
+      "html": "<button class=\"ds-btn\">Exportar</button>",
+      "css": ".ds-btn{height:40px;padding:0 16px;border-radius:2px;border:1px solid #aebaaf;background:#fff;color:#14241e;font:600 15px Barlow,system-ui,sans-serif;transition:background-color 140ms}.ds-btn:hover{background:#e0ece5;border-color:#12503e}.ds-btn:focus-visible{outline:2px solid #d9532c;outline-offset:2px}"
+    },
+    {
+      "name": "Segmented Control",
+      "kind": "custom",
+      "refersTo": "segmented-active",
+      "description": "Escolha entre opções; selecionado em verde-garrafa.",
+      "html": "<div class=\"ds-seg\"><span class=\"ds-seg-label\">Ordem</span><button aria-pressed=\"true\">Código</button><button aria-pressed=\"false\">Nome</button></div>",
+      "css": ".ds-seg{display:inline-flex;border:1px solid #aebaaf;border-radius:2px;background:#fff;overflow:hidden;font-family:Barlow,system-ui,sans-serif}.ds-seg-label{display:inline-flex;align-items:center;padding:0 12px;font-size:13px;font-weight:600;color:#3d5047;background:#f3f5f1;border-right:1px solid #aebaaf}.ds-seg button{height:38px;padding:0 16px;border:0;background:transparent;font:600 14px Barlow,system-ui,sans-serif;color:#3d5047}.ds-seg button+button{border-left:1px solid #d3dad3}.ds-seg button[aria-pressed=true]{background:#12503e;color:#fff}.ds-seg button:hover:not([aria-pressed=true]){background:#e0ece5}.ds-seg button:focus-visible{outline:2px solid #d9532c;outline-offset:-2px}"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Campo de 40px com foco laranja.",
+      "html": "<input class=\"ds-input\" placeholder=\"Buscar por código ou nome\">",
+      "css": ".ds-input{width:240px;height:40px;padding:0 12px;border-radius:2px;border:1px solid #aebaaf;background:#fff;color:#14241e;font:400 15px Barlow,system-ui,sans-serif}.ds-input::placeholder{color:#5a6b62}.ds-input:focus-visible{outline:2px solid #d9532c;outline-offset:0;border-color:#d9532c}"
+    },
+    {
+      "name": "Rail Navigation",
+      "kind": "nav",
+      "refersTo": "nav-item-active",
+      "description": "Barra lateral verde com item ativo em porcelana.",
+      "html": "<nav class=\"ds-rail\"><a href=\"#\" aria-current=\"page\">Reservas</a><a href=\"#\">Clientes</a><a href=\"#\">Estoque</a></nav>",
+      "css": ".ds-rail{width:232px;padding:12px;background:#12503e;font-family:Barlow,system-ui,sans-serif}.ds-rail a{display:flex;align-items:center;height:44px;padding:0 16px;margin-bottom:2px;border-radius:2px;color:#e3eee8;font-weight:600;font-size:15.5px;text-decoration:none;transition:background-color 140ms}.ds-rail a:hover{background:rgba(255,255,255,.12)}.ds-rail a[aria-current=page]{background:#f3f5f1;color:#0c3a2d}.ds-rail a:focus-visible{outline:2px solid #d9532c;outline-offset:2px}"
+    },
+    {
+      "name": "Status Tags",
+      "kind": "chip",
+      "refersTo": "tag-warn",
+      "description": "Etiquetas de estado; aviso em laranja-névoa.",
+      "html": "<span class=\"ds-tag ds-tag-ok\">Entregue</span> <span class=\"ds-tag ds-tag-warn\">Estoque baixo</span> <span class=\"ds-tag ds-tag-blue\">Reservado</span>",
+      "css": ".ds-tag{display:inline-flex;align-items:center;height:22px;padding:0 8px;border-radius:2px;font:700 12px Barlow,system-ui,sans-serif;letter-spacing:.01em}.ds-tag-ok{background:#dcefe3;color:#1b6b45}.ds-tag-warn{background:#fbebe4;color:#a63a19}.ds-tag-blue{background:#e5edf8;color:#2b5fa8}"
+    },
+    {
+      "name": "Panel",
+      "kind": "card",
+      "refersTo": "panel",
+      "description": "Azulejo grande com junta; sem sombra.",
+      "html": "<div class=\"ds-panel\"><h3>Estoque atual</h3><p>Brahma 30L: 12 barris</p></div>",
+      "css": ".ds-panel{padding:18px 20px;background:#fff;border:1px solid #aebaaf;border-radius:2px;color:#14241e;font-family:Barlow,system-ui,sans-serif}.ds-panel h3{margin:0 0 10px;font:700 19px 'Barlow Semi Condensed',Barlow,sans-serif}.ds-panel p{margin:0;font-size:15px}"
+    },
+    {
+      "name": "Reservation Grid Row",
+      "kind": "custom",
+      "refersTo": "grid-cell",
+      "description": "Código, nome e células de reserva com rejunte; faixa de marca no topo da coluna.",
+      "html": "<table class=\"ds-grade\"><thead><tr><th class=\"ds-fixa\">Cód.</th><th class=\"ds-fixa\">Cliente</th><th style=\"border-top-color:#c23b2e\">Brahma 30L</th><th style=\"border-top-color:#2f6fb5\">Antarctica 30L</th></tr></thead><tbody><tr><td class=\"ds-cod\">1042</td><td class=\"ds-nome\"><b>Bar do Zé</b><span>Centro</span></td><td class=\"ds-res\">3</td><td class=\"ds-ent\">2</td></tr><tr><td class=\"ds-cod\">1187</td><td class=\"ds-nome\"><b>Adega Sul</b><span>Jardim</span></td><td class=\"ds-vaz\">0</td><td class=\"ds-vaz\">1</td></tr></tbody><tfoot><tr><td colspan=\"2\">Total</td><td>3</td><td>3</td></tr></tfoot></table>",
+      "css": ".ds-grade{border-collapse:separate;border-spacing:0;font-family:Barlow,system-ui,sans-serif;background:#fff;border:1px solid #aebaaf}.ds-grade th,.ds-grade td{border-right:1px solid #d3dad3;border-bottom:1px solid #d3dad3;background:#fff}.ds-grade thead th{padding:9px 8px 8px;border-top:6px solid #12503e;font:700 15px 'Barlow Semi Condensed',Barlow,sans-serif;text-align:center;border-bottom-color:#aebaaf}.ds-grade thead th.ds-fixa{text-align:left}.ds-cod{width:96px;padding:0 12px;background:#e0ece5!important;color:#0c3a2d;font:700 18px 'Barlow Semi Condensed',Barlow,sans-serif}.ds-nome{width:200px;padding:5px 12px;line-height:1.2}.ds-nome b{display:block;font-weight:600}.ds-nome span{display:block;font-size:12.5px;color:#5a6b62}.ds-res,.ds-ent,.ds-vaz{width:112px;height:44px;text-align:center;font:700 20px 'Barlow Semi Condensed',Barlow,sans-serif;color:#14241e}.ds-res{background:#e5edf8!important}.ds-ent{background:#dcefe3!important}.ds-grade tfoot td{padding:10px 8px;background:#12503e;color:#fff;font:700 19px 'Barlow Semi Condensed',Barlow,sans-serif;text-align:center;border-color:#0c3a2d}.ds-grade tfoot td[colspan]{text-align:left;font:600 14px Barlow,sans-serif;background:#0c3a2d}"
+    },
+    {
+      "name": "Stock Bar",
+      "kind": "custom",
+      "refersTo": "panel",
+      "description": "Barra de estoque; laranja abaixo do mínimo, marca de mínimo em tinta.",
+      "html": "<div class=\"ds-barra\"><i style=\"width:70%\"></i><b style=\"left:40%\"></b></div><br><div class=\"ds-barra baixo\"><i style=\"width:25%\"></i><b style=\"left:40%\"></b></div>",
+      "css": ".ds-barra{position:relative;height:12px;min-width:140px;background:#f3f5f1;border:1px solid #aebaaf;border-radius:1px}.ds-barra i{position:absolute;inset:0 auto 0 0;background:#12503e}.ds-barra.baixo i{background:#d9532c}.ds-barra b{position:absolute;top:-3px;bottom:-3px;width:2px;background:#14241e}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Azulejo de Boteco",
+    "overview": "Uma parede de boteco azulejada: porcelana clara, azulejos brancos quadrados separados por rejunte fino, uma faixa verde-garrafa que segura a casa. Cada tela é lida como uma parede de azulejos, onde a grade de reservas é o caso extremo e todas as outras tabelas (estoque, sugestão, clientes, fechamento) usam o mesmo rejunte. A ferramenta é de uma pessoa só, no desktop, com luz de escritório; o tom é de balcão competente, sem enfeite de SaaS.\n\nA cor trabalha pouco e por função. Verde-garrafa é a estrutura (barra lateral, ação principal, linha sob o título, totais, estado selecionado de controles segmentados). Laranja é reservado para seleção, foco e atenção. Azul de azulejo, verde-ok e cinza contam o estado das células. As cores das marcas de chopp aparecem só como a faixa que encabeça cada coluna de produto e como pontinho quadrado ao lado do nome.\n\nO código do cliente vem antes do nome, em numeral condensado grande sobre um azulejo tingido de verde. Os números são sempre tabulares e alinhados.",
+    "keyCharacteristics": [
+      "Cantos quase retos (2px), bordas de 1px de rejunte, nenhuma sombra suave nas superfícies.",
+      "Barlow para texto e Barlow Semi Condensed para títulos e numerais.",
+      "Laranja escasso: só seleção, foco e atenção.",
+      "Padrão de azulejo hidráulico só no pé da barra lateral e no login.",
+      "Logo: espaço reservado com nome em texto; nenhum símbolo inventado."
+    ],
+    "rules": [
+      {
+        "name": "The Orange Is Attention Rule",
+        "body": "Laranja aparece apenas para seleção, foco e atenção (estoque baixo, aviso, linha selecionada). Nunca como cor de marca, decoração ou ação primária. Estados \"selecionado\" de controles segmentados usam verde-garrafa, não laranja; o item ativo da navegação usa preenchimento porcelana.",
+        "section": "colors"
+      },
+      {
+        "name": "The Brand Band Rule",
+        "body": "Cor de marca de produto só identifica o produto: faixa no topo da coluna e ponto quadrado. Nunca em botões, fundos ou texto.",
+        "section": "colors"
+      },
+      {
+        "name": "The Tabular Rule",
+        "body": "Todo número é tabular (`tnum` no corpo inteiro). Colunas de quantidade nunca dançam.",
+        "section": "typography"
+      },
+      {
+        "name": "The Code First Rule",
+        "body": "Onde há cliente, o código vem primeiro, em numeral condensado sobre azulejo verde-névoa; o nome vem depois, em corpo 600, com cidade ou setor em 12.5px de tinta 3.",
+        "section": "typography"
+      },
+      {
+        "name": "The Grout Not Shadow Rule",
+        "body": "Separação se faz com linha de 1px ou mudança de tom, nunca com sombra suave. O modal é o único elemento do build com sombra difusa; é uma exceção carregada pelo build, não uma regra para novas superfícies.",
+        "section": "elevation & depth"
+      },
+      {
+        "name": "The Selected Is Green Rule",
+        "body": "Seleção de controle (segmentado, item ativo) é verde ou porcelana; laranja fica para foco e linha selecionada em tabela.",
+        "section": "components"
+      }
+    ],
+    "dos": [
+      "**Do** separar áreas com rejunte de 1px (`{colors.grout}` dentro, `{colors.grout-strong}` no contorno).",
+      "**Do** usar raio de 2px em tudo que for controle ou superfície.",
+      "**Do** mostrar código antes de nome e usar numerais condensados tabulares para quantidades.",
+      "**Do** usar laranja só para foco, seleção e atenção, e dizer no aviso o que fazer.",
+      "**Do** usar cor de marca de produto só na faixa de coluna e no ponto quadrado.",
+      "**Do** manter o padrão de azulejo hidráulico restrito ao pé da barra lateral e ao login.",
+      "**Do** manter o logo como espaço reservado em texto até o arquivo real ser fornecido."
+    ],
+    "donts": [
+      "**Don't** usar cartões macios com sombra, nem o âmbar escuro de \"chopeira\" da versão anterior.",
+      "**Don't** usar laranja como cor de botão primário, decoração ou marca.",
+      "**Don't** arredondar além de 2px nem usar pílulas.",
+      "**Don't** colocar o padrão de azulejo em fundos de conteúdo, cabeçalhos ou cartões.",
+      "**Don't** pintar botões, texto ou fundos com cores de marca de chopp.",
+      "**Don't** inventar logo, símbolo ou cor de marca da Dibral."
+    ]
+  }
+}

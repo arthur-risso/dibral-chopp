@@ -10,6 +10,6 @@ export function brandColor(nome: string, marca: string): string {
     case "Colorado":
       return "var(--brand-colorado)";
     default:
-      return "var(--amber)";
+      return "var(--green)";
   }
 }

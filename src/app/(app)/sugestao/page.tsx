@@ -25,79 +25,67 @@ export default function SugestaoPage() {
   const totalPuxar = sugestoes.reduce((acc, s) => acc + s.sugestao_puxar, 0);
 
   return (
-    <div>
-      <header className="mb-6">
-        <h1 className="font-[family-name:var(--font-display)] text-2xl text-text">
-          Sugestão de compra
-        </h1>
-        <p className="text-sm text-text-muted mt-0.5">
-          {semanasConsideradas.length > 0
-            ? `Baseada na média das últimas ${semanasConsideradas.length} semana${
-                semanasConsideradas.length > 1 ? "s" : ""
-              } e nas reservas já feitas para esta semana`
-            : "Ainda sem histórico de semanas anteriores — lance reservas por algumas semanas para a média ficar mais precisa"}
-        </p>
+    <div className="page-narrow">
+      <header className="page-head">
+        <div>
+          <h1 className="page-title">Sugestão de compra</h1>
+          <p className="page-sub">
+            {semanasConsideradas.length > 0
+              ? `Baseada na média das últimas ${semanasConsideradas.length} semana${
+                  semanasConsideradas.length > 1 ? "s" : ""
+                } e nas reservas já feitas para esta semana`
+              : "Ainda sem histórico de semanas anteriores. Lance reservas por algumas semanas para a média ficar mais precisa"}
+          </p>
+        </div>
+        {!loading && (
+          <div className="text-right">
+            <p className="text-sm font-semibold text-ink-2">Total para puxar nesta semana</p>
+            <p className="font-display text-[38px] font-bold leading-none">
+              {totalPuxar} <span className="text-lg font-semibold text-ink-2">barris</span>
+            </p>
+          </div>
+        )}
       </header>
 
+      {erro && (
+        <p className="aviso aviso-danger mb-4" role="alert">
+          {erro}
+        </p>
+      )}
       {loading ? (
-        <p className="text-sm text-text-faint">Calculando…</p>
-      ) : erro ? (
-        <p className="text-sm text-danger">{erro}</p>
+        <p className="text-ink-2">Calculando…</p>
       ) : (
         <>
-          <div className="rounded-xl border border-border bg-surface p-4 mb-6 flex items-center justify-between">
-            <span className="text-sm text-text-muted">Total sugerido para puxar nesta semana</span>
-            <span className="font-[family-name:var(--font-mono)] text-2xl text-amber">
-              {totalPuxar} <span className="text-sm text-text-faint">barris</span>
-            </span>
-          </div>
-
-          <div className="rounded-xl border border-border overflow-hidden">
-            <table className="w-full text-sm">
+          <div className="panel overflow-hidden">
+            <table className="tbl joint">
               <thead>
-                <tr className="bg-bg-elevated text-text-faint text-left">
-                  <th className="px-4 py-2.5 font-medium">Chopp</th>
-                  <th className="px-4 py-2.5 font-medium text-right">Estoque</th>
-                  <th className="px-4 py-2.5 font-medium text-right hidden sm:table-cell">
-                    Média/semana
-                  </th>
-                  <th className="px-4 py-2.5 font-medium text-right hidden sm:table-cell">
-                    Reservado agora
-                  </th>
-                  <th className="px-4 py-2.5 font-medium text-right">Puxar</th>
+                <tr>
+                  <th>Chopp</th>
+                  <th className="r">Estoque</th>
+                  <th className="r">Média por semana</th>
+                  <th className="r">Reservado agora</th>
+                  <th className="r">Puxar</th>
                 </tr>
               </thead>
               <tbody>
                 {sugestoes.map((s) => (
-                  <tr key={s.produto_id} className="border-t border-border-subtle">
-                    <td className="px-4 py-3">
-                      <span className="inline-flex items-center gap-1.5 text-text">
-                        <span
-                          className="h-2 w-2 rounded-full shrink-0"
-                          style={{ background: brandColor(s.produto_nome, s.marca) }}
-                        />
+                  <tr key={s.produto_id}>
+                    <td>
+                      <span className="inline-flex items-center gap-2 font-semibold">
+                        <span className="brand-dot" style={{ background: brandColor(s.produto_nome, s.marca) }} />
                         {s.produto_nome}
                       </span>
-                      {s.estoque_baixo && (
-                        <span className="ml-2 inline-flex items-center rounded-full bg-[var(--danger-bg)] text-danger px-1.5 py-0.5 text-[10px]">
-                          estoque baixo
-                        </span>
-                      )}
+                      {s.estoque_baixo && <span className="tag tag-warn ml-2">estoque baixo</span>}
                     </td>
-                    <td className="px-4 py-3 text-right font-[family-name:var(--font-mono)] text-text-muted">
-                      {s.estoque_atual}
-                    </td>
-                    <td className="px-4 py-3 text-right font-[family-name:var(--font-mono)] text-text-muted hidden sm:table-cell">
+                    <td className="r">{s.estoque_atual}</td>
+                    <td className="r">
                       {s.media_ultimas_semanas === null ? "—" : Math.round(s.media_ultimas_semanas)}
                     </td>
-                    <td className="px-4 py-3 text-right font-[family-name:var(--font-mono)] text-text-muted hidden sm:table-cell">
-                      {s.reservas_semana_atual}
-                    </td>
-                    <td className="px-4 py-3 text-right">
+                    <td className="r">{s.reservas_semana_atual}</td>
+                    <td className="ncel">
                       <span
-                        className={`font-[family-name:var(--font-mono)] text-base ${
-                          s.sugestao_puxar > 0 ? "text-amber-strong" : "text-text-faint"
-                        }`}
+                        className="font-display text-2xl font-bold"
+                        style={{ color: s.sugestao_puxar > 0 ? "var(--green)" : "var(--ink-3)" }}
                       >
                         {s.sugestao_puxar}
                       </span>
@@ -108,10 +96,10 @@ export default function SugestaoPage() {
             </table>
           </div>
 
-          <p className="text-xs text-text-faint mt-4 leading-relaxed max-w-2xl">
-            Cálculo: para cada chopp, comparamos a média reservada nas últimas semanas com o que já
-            foi reservado para a semana atual, e usamos o maior dos dois como estimativa de demanda.
-            A sugestão de compra é essa estimativa menos o que já está em estoque.
+          <p className="text-ink-2 mt-5 max-w-2xl text-[14.5px]">
+            Como o cálculo é feito: para cada chopp, comparamos a média reservada nas últimas semanas
+            com o que já foi reservado para a semana atual, e usamos o maior dos dois como estimativa
+            de demanda. A sugestão de compra é essa estimativa menos o que já está em estoque.
           </p>
         </>
       )}

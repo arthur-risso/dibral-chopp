@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import BarrilGauge from "@/components/BarrilGauge";
 import { brandColor } from "@/lib/brandColors";
 import type { ProdutoComEstoque } from "@/lib/types";
 import { api, errorMessage } from "@/lib/apiClient";
@@ -117,144 +116,179 @@ export default function EstoquePage() {
   }
 
   return (
-    <div>
-      <header className="mb-6">
-        <h1 className="font-[family-name:var(--font-display)] text-2xl text-text">Estoque</h1>
-        <p className="text-sm text-text-muted mt-0.5">
-          {loading
-            ? "Carregando…"
-            : baixoCount > 0
-            ? `${baixoCount} chopp${baixoCount > 1 ? "s" : ""} abaixo do mínimo definido`
-            : "Todos os chopps dentro do nível mínimo"}
-        </p>
+    <div className="page-narrow">
+      <header className="page-head">
+        <div>
+          <h1 className="page-title">Estoque</h1>
+          <p className="page-sub">
+            {loading
+              ? "Carregando…"
+              : baixoCount > 0
+              ? `${baixoCount} chopp${baixoCount > 1 ? "s" : ""} abaixo do mínimo definido`
+              : "Todos os chopps dentro do nível mínimo"}
+          </p>
+        </div>
       </header>
 
-      {erro && <p className="text-sm text-danger mb-4">{erro}</p>}
-
-      {/* Lançamento manual de estoque */}
-      <div className="rounded-xl border border-border bg-surface p-4 mb-6">
-        <p className="text-xs text-text-muted mb-3">Lançar estoque disponível</p>
-        <div className="flex flex-wrap gap-2.5">
-          <select
-            value={lancarProdutoId}
-            onChange={(e) => setLancarProdutoId(e.target.value)}
-            className="flex-1 min-w-[180px] rounded-lg bg-bg border border-border px-3 py-2 text-sm text-text"
-          >
-            <option value="">Chopp…</option>
-            {produtos.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.nome}
-              </option>
-            ))}
-          </select>
-          <input
-            type="number"
-            min={0}
-            value={lancarQuantidade}
-            onChange={(e) => setLancarQuantidade(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && lancarEstoque()}
-            placeholder="Quantidade disponível"
-            className="w-48 rounded-lg bg-bg border border-border px-3 py-2 text-sm text-text placeholder:text-text-faint"
-          />
-          <button
-            onClick={lancarEstoque}
-            disabled={lancando}
-            className="rounded-lg bg-amber text-[#1a1408] font-medium px-4 py-2 text-sm hover:bg-amber-strong disabled:opacity-50"
-          >
+      {erro && (
+        <p className="aviso aviso-danger mb-4" role="alert">
+          {erro}
+        </p>
+      )}
+      <section className="panel panel-pad mb-6">
+        <h2 className="section-title" style={{ marginBottom: 12 }}>
+          Lançar estoque disponível
+        </h2>
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="flex-1 min-w-[200px]">
+            <label className="label" htmlFor="lancar-chopp">
+              Chopp
+            </label>
+            <select
+              id="lancar-chopp"
+              value={lancarProdutoId}
+              onChange={(e) => setLancarProdutoId(e.target.value)}
+              className="input"
+            >
+              <option value="">Escolha o chopp</option>
+              {produtos.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.nome}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div style={{ width: 200 }}>
+            <label className="label" htmlFor="lancar-qtd">
+              Barris disponíveis
+            </label>
+            <input
+              id="lancar-qtd"
+              type="number"
+              min={0}
+              value={lancarQuantidade}
+              onChange={(e) => setLancarQuantidade(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && lancarEstoque()}
+              className="input"
+            />
+          </div>
+          <button onClick={lancarEstoque} disabled={lancando} className="btn btn-primary">
             {lancando ? "Lançando…" : "Lançar"}
           </button>
         </div>
-        {erroLancamento && <p className="text-sm text-danger mt-2">{erroLancamento}</p>}
-        <p className="text-xs text-text-faint mt-2">
+        {erroLancamento && <p className="aviso aviso-danger mt-3">{erroLancamento}</p>}
+        <p className="text-ink-2 text-sm mt-3">
           Isso substitui a quantidade atual desse chopp pelo valor informado.
         </p>
-      </div>
+      </section>
 
       {loading ? (
-        <p className="text-sm text-text-faint">Carregando…</p>
+        <p className="text-ink-2">Carregando…</p>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-          {produtos.map((p) => {
-            const baixo = p.quantidade_atual < p.estoque_minimo;
-            return (
-              <div
-                key={p.id}
-                className={`rounded-xl border p-4 flex flex-col items-center gap-3 ${
-                  baixo ? "border-danger/40 bg-[var(--danger-bg)]" : "border-border bg-surface"
-                }`}
-              >
-                <div className="text-center">
-                  <p className="text-sm text-text font-medium leading-tight">{p.nome}</p>
-                  <p className="text-xs text-text-faint mt-0.5">{p.volume_litros}L</p>
-                </div>
-
-                <BarrilGauge
-                  quantidade={p.quantidade_atual}
-                  max={maxEstoque}
-                  baixo={baixo}
-                  color={brandColor(p.nome, p.marca)}
-                />
-
-                {editandoId === p.id ? (
-                  <div className="flex items-center gap-1.5 w-full">
-                    <input
-                      autoFocus
-                      type="number"
-                      min={0}
-                      value={valorEdicao}
-                      onChange={(e) => setValorEdicao(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && salvarQuantidade(p)}
-                      className="w-full rounded-md bg-bg border border-border px-2 py-1 text-sm text-center font-[family-name:var(--font-mono)]"
-                    />
-                    <button
-                      onClick={() => salvarQuantidade(p)}
-                      className="text-ok text-xs shrink-0"
-                      aria-label="Salvar"
-                    >
-                      OK
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => iniciarEdicao(p)}
-                    className="text-xs text-amber hover:text-amber-strong"
-                  >
-                    Ajustar barris
-                  </button>
-                )}
-
-                <div className="w-full pt-2 border-t border-border-subtle text-center">
-                  {editandoMinimoId === p.id ? (
-                    <div className="flex items-center justify-center gap-1.5">
-                      <span className="text-[11px] text-text-faint">mín.</span>
-                      <input
-                        autoFocus
-                        type="number"
-                        min={0}
-                        value={valorMinimo}
-                        onChange={(e) => setValorMinimo(e.target.value)}
-                        onKeyDown={(e) => e.key === "Enter" && salvarMinimo(p)}
-                        className="w-14 rounded-md bg-bg border border-border px-1.5 py-0.5 text-xs text-center font-[family-name:var(--font-mono)]"
-                      />
-                      <button onClick={() => salvarMinimo(p)} className="text-ok text-xs">
-                        OK
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => iniciarEdicaoMinimo(p)}
-                      className="text-[11px] text-text-faint hover:text-text-muted"
-                    >
-                      Alerta abaixo de{" "}
-                      <span className="font-[family-name:var(--font-mono)]">{p.estoque_minimo}</span>
-                    </button>
-                  )}
-                </div>
-              </div>
-            );
-          })}
+        <div className="panel overflow-hidden">
+          <table className="tbl joint">
+            <thead>
+              <tr>
+                <th>Chopp</th>
+                <th className="r">Barris</th>
+                <th style={{ width: "26%" }}>Nível (marca preta = mínimo)</th>
+                <th className="r">Alerta abaixo de</th>
+                <th>Situação</th>
+              </tr>
+            </thead>
+            <tbody>
+              {produtos.map((p) => {
+                const baixo = p.quantidade_atual < p.estoque_minimo;
+                const pct = Math.min((p.quantidade_atual / maxEstoque) * 100, 100);
+                const pctMin = Math.min((p.estoque_minimo / maxEstoque) * 100, 100);
+                return (
+                  <tr key={p.id}>
+                    <td>
+                      <span className="inline-flex items-center gap-2 font-semibold">
+                        <span className="brand-dot" style={{ background: brandColor(p.nome, p.marca) }} />
+                        {p.nome}
+                      </span>
+                    </td>
+                    <td className={`ncel ${baixo ? "alerta" : ""}`}>
+                      {editandoId === p.id ? (
+                        <span className="inline-flex items-center gap-2 justify-center">
+                          <input
+                            autoFocus
+                            type="number"
+                            min={0}
+                            value={valorEdicao}
+                            onChange={(e) => setValorEdicao(e.target.value)}
+                            onKeyDown={(e) => e.key === "Enter" && salvarQuantidade(p)}
+                            aria-label={`Barris de ${p.nome}`}
+                            className="input"
+                            style={{ width: 84, textAlign: "center" }}
+                          />
+                          <button onClick={() => salvarQuantidade(p)} className="btn btn-primary btn-sm">
+                            OK
+                          </button>
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => iniciarEdicao(p)}
+                          title="Clique para ajustar"
+                          className={`num-btn ${baixo ? "baixo" : ""}`}
+                        >
+                          {p.quantidade_atual}
+                        </button>
+                      )}
+                    </td>
+                    <td>
+                      <div className={`barra ${baixo ? "baixo" : ""}`}>
+                        <i style={{ width: `${pct}%` }} />
+                        {p.estoque_minimo > 0 && <b style={{ left: `${pctMin}%` }} />}
+                      </div>
+                    </td>
+                    <td className="ncel">
+                      {editandoMinimoId === p.id ? (
+                        <span className="inline-flex items-center gap-2 justify-center">
+                          <input
+                            autoFocus
+                            type="number"
+                            min={0}
+                            value={valorMinimo}
+                            onChange={(e) => setValorMinimo(e.target.value)}
+                            onKeyDown={(e) => e.key === "Enter" && salvarMinimo(p)}
+                            aria-label={`Mínimo de ${p.nome}`}
+                            className="input"
+                            style={{ width: 72, textAlign: "center" }}
+                          />
+                          <button onClick={() => salvarMinimo(p)} className="btn btn-primary btn-sm">
+                            OK
+                          </button>
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => iniciarEdicaoMinimo(p)}
+                          title="Clique para ajustar"
+                          className="num-btn"
+                          style={{ fontSize: 17 }}
+                        >
+                          {p.estoque_minimo}
+                        </button>
+                      )}
+                    </td>
+                    <td>
+                      {baixo ? (
+                        <span className="tag tag-warn">estoque baixo</span>
+                      ) : (
+                        <span className="tag tag-ok">ok</span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       )}
+      <p className="text-ink-2 text-sm mt-3">
+        Clique no número de barris para ajustar a quantidade, ou no número da coluna &ldquo;Alerta abaixo de&rdquo; para mudar o mínimo.
+      </p>
     </div>
   );
 }
